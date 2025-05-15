@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "Project52"
+version = "0.1.0"
+description = "Project52: A forward-thinking financial markets analysis platform by The 254 Company."
+authors = [
+    { name = "The 254 Company", email = "m@254carbon.com" }
+]
+maintainers = [
+    { name = "The 254 Company", email = "m@254carbon.com" }
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["finance", "markets", "data-analysis", "254company", "project52"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Natural Language :: English",
+    "Development Status :: 2 - Pre-Alpha",
+]
+
+[project.urls]
+Homepage = "https://project52.org/"
+Repository = "https://github.com/254co/project52"
+Documentation = "https://the254company.com/project52/docs"
+Company = "https://the254company.com/"
+
+# [project.dependencies]
+# pandas = ">=2.0.0"
+# numpy = ">=1.24"
+# requests = ">=2.31"
+
+[tool.hatch.build.targets.wheel]
+# Include all Python files by default
+
+[tool.hatch.version]
+path = "project52/__init__.py"
+
+# [project.scripts]
+# project52 = "project52.cli:main"
