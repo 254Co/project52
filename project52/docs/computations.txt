@@ -1,0 +1,199 @@
+Black–Scholes–Merton (BSM) Option Pricing Model
+Summary: A foundational framework for pricing European call and put options under the assumptions of continuous trading, constant volatility and interest rates, and no arbitrage. It introduced dynamic delta-hedging and showed how to derive a unique, closed-form price for vanilla options.
+Use Cases: Industry standard for quoting implied volatility; baseline for vanilla option desks and risk managers; extended in practice to handle dividends, volatility skew, and American-style features.
+Implementation: Trivially coded in Python, Excel or C++—compute option prices and risk sensitivities (Greeks) via standard library routines or vectorized‐GPU implementations for large portfolios.
+
+Binomial Options Pricing Model
+Summary: A discrete‐time lattice method that models the underlying asset’s up/down moves over a multi‐step tree, then prices options by backward induction. Naturally accommodates early exercise and path‐dependent payoffs.
+Use Cases: Common for pricing American and exotic options; educational tool for illustrating hedging intuition; practical fallback when closed‐form formulas don’t exist.
+Implementation: Simple loops or vectorized arrays in Python or spreadsheets; scales to fine trees on a single machine and parallelizes easily for very large trees.
+
+Finite Difference Methods for PDE Option Pricing
+Summary: Numerically solves the partial differential equations (Black–Scholes and variants) by discretizing asset price and time into grids. Especially powerful for American/ barrier options and multi‐dimensional problems.
+Use Cases: Valuing early‐exercise and complex structured derivatives; solving multi-factor PDEs (e.g. local or stochastic volatility) where trees or closed forms fail.
+Implementation: Set up grid arrays and iterate with explicit, implicit or Crank–Nicolson schemes in Python/NumPy; production libraries often in optimized C++ or on GPUs.
+
+Monte Carlo Simulation for Derivatives Pricing
+Summary: Simulates many randomized asset paths under risk-neutral dynamics, computes payoffs, and averages back-discounted outcomes. The go-to for high-dimensional and path‐dependent payoffs.
+Use Cases: Basket and Asian options, counterparty credit adjustments (CVA), complex exotics; portfolio risk metrics (VaR, ES).
+Implementation: Vectorized NumPy or C++/CUDA for millions of paths; variance reduction (antithetic, stratification, quasi-Monte Carlo) and embarrassingly parallel across cores or clusters.
+
+Heston Stochastic Volatility Model
+Summary: Introduces a separate, mean-reverting variance process allowing the model to capture implied volatility smiles and skews. Retains semi-analytical pricing via characteristic functions.
+Use Cases: Equity and FX options requiring realistic skew modeling; calibration of volatility surfaces; exotic pricing (barriers, cliquets) under stochastic vol.
+Implementation: Characteristic‐function inversion (FFT or quadrature) in Python/QuantLib or C++; Monte Carlo with specialized schemes (Milstein, QE) for path simulation.
+
+SABR Stochastic Volatility Model
+Summary: A flexible framework for interest‐rate derivatives that interpolates between normal and lognormal behaviors, capturing volatility smiles with a small parameter set.
+Use Cases: Caps, floors, swaptions—industry standard for quoting and interpolating normal vol surfaces in low or negative‐rate environments.
+Implementation: Calibrate the approximate analytic formula in Python or Excel; embed in distributed frameworks for parallel fitting across expiries.
+
+Hull–White One-Factor Interest Rate Model
+Summary: A no-arbitrage short-rate model with time-dependent drift that fits today’s yield curve exactly and yields closed-form bond and caplet formulas.
+Use Cases: Pricing and risk of caps, floors, swaptions; Monte Carlo scenario generation for CVA and asset-liability management; prepayment modeling in MBS.
+Implementation: Leverage QuantLib’s built-in routines or implement analytic formulas and tree methods for Bermudan pricing; fast enough for real-time risk.
+
+Cox–Ingersoll–Ross (CIR) Interest Rate Model
+Summary: A mean-reverting short-rate model ensuring non-negative rates via a square-root diffusion. Produces closed-form bond and bond-option prices.
+Use Cases: Corporate bond option benchmarks; credit intensity modeling in reduced-form credit models; building blocks for multi-factor volatility processes (e.g., Heston).
+Implementation: Calibrate to term‐structure and vol; simulate via exact methods or reflection schemes; analytic pricing via affine model formulas.
+
+Heath–Jarrow–Morton (HJM) Interest Rate Framework
+Summary: Models the entire forward curve’s evolution under no-arbitrage, parameterizing the drift from the chosen volatility structure. Encompasses many short-rate and LIBOR models.
+Use Cases: Theoretical basis for multi-factor rate models; underlies the LIBOR Market Model for caplets, swaptions, and exotic interest‐rate products.
+Implementation: Specialized cases (e.g., LMM) via Monte Carlo on a finite set of forward rates; dimension reduction to control complexity.
+
+LIBOR Market Model (Brace–Gatarek–Musiela)
+Summary: A discretized HJM‐type model that treats each forward LIBOR as lognormal under its forward measure, aligning caplet pricing with Black-76 and supporting multi-factor capabilities.
+Use Cases: Calibration to cap/floor smiles and swaption correlations; pricing Bermudan swaptions, CMS products, callable structures; XVA scenario generation.
+Implementation: Monte Carlo simulation in optimized C++ or GPU accelerated code; high-dimensional calibrations often parallelized in clusters.
+
+Merton Jump–Diffusion Equity Model
+Summary: Extends Black–Scholes by adding Poisson‐driven jumps to asset dynamics, capturing heavy tails and option skew due to large moves.
+Use Cases: Equity and index options in stressed or crisis scenarios; calibration to deep OTM put prices; credit modeling via asset jumps.
+Implementation: Closed-form series of weighted BSM terms truncated for speed, or Fourier‐transform methods; jump simulation in Monte Carlo for path-dependent payoffs.
+
+Variance Gamma (VG) Model
+Summary: A pure-jump process with infinite activity, modeling returns as time‐changed Brownian motion to capture skew and kurtosis in option pricing.
+Use Cases: Short-dated and exotic options where jump clustering matters; structured products and digital options pricing; risk systems’ tail modeling.
+Implementation: Fourier/FFT inversion of known characteristic function; Monte Carlo via subordinated Gamma time grid; parameter calibration via least-squares.
+
+Dupire Local Volatility Model
+Summary: Derives a deterministic volatility surface from market‐implied volatilities, ensuring an exact fit to all vanilla option prices and arbitrage‐free interpolation.
+Use Cases: Exotic equity and FX derivatives pricing, particularly barriers and cliquets; benchmarking against stochastic vol models.
+Implementation: Interpolate and smooth implied vol surface, compute local vol grid numerically, and plug into PDE solver or Monte Carlo for exotics.
+
+Longstaff–Schwartz Least-Squares Monte Carlo (LSM)
+Summary: A regression-based Monte Carlo method enabling pricing of American and Bermudan options by approximating continuation values along simulated paths.
+Use Cases: High-dimensional early-exercise derivatives (convertibles, callable structures); CVA on callables.
+Implementation: Simulate paths, use basis‐function regression at each exercise date, implement in Python (NumPy/scikit-learn) or C++/GPU for production.
+
+Value at Risk (VaR)
+Summary: A quantile‐based measure summarizing the maximum expected loss over a horizon at a given confidence level; simple and intuitive but blind to tail severity.
+Use Cases: Regulatory capital under Basel II/III (now moving to ES); desk limits; daily P&L control.
+Implementation: Parametric (delta–sigma), historical, or Monte Carlo revaluation; vectorized risk factor shocks in Python or optimized risk engines in C++.
+
+Expected Shortfall (CVaR)
+Summary: The average loss beyond the VaR threshold, providing a coherent and subadditive risk measure that captures tail severity.
+Use Cases: Regulatory market risk under FRTB; internal risk monitoring; CVaR‐based portfolio optimization.
+Implementation: Sort simulated or historical P&L scenarios, average worst losses; parametric formulas for normal assumptions; parallelizable in Spark.
+
+GARCH Volatility Forecasting Model
+Summary: Models conditional return variance as a function of past shocks and past variance, capturing volatility clustering in financial series.
+Use Cases: Volatility forecasting for VaR, options desk quoting; dynamic risk budgeting; some quantitative strategies’ signal generation.
+Implementation: Fit via maximum likelihood (normal or t‐innovations) using packages like Python’s arch or R’s rugarch; compute one-step ahead forecasts recursively.
+
+Extreme Value Theory (EVT) for Tail Risk
+Summary: Focuses on modeling the behavior of extreme losses using asymptotic tail distributions (GEV, GPD) to estimate very high quantiles.
+Use Cases: Estimating 99.9% VaR, stress scenarios, operational risk LDA tail fitting, insurance catastrophe modeling.
+Implementation: Identify threshold, fit GPD to exceedances via MLE, use tail formula to extrapolate extreme quantiles; validate via mean‐excess plots.
+
+Gaussian Copula Model for Portfolio Credit Risk
+Summary: Links individual default probabilities via a common Gaussian factor, enabling tractable CDO tranche pricing and portfolio loss modeling.
+Use Cases: Synthetic CDO structuring, credit VaR (CreditMetrics style), counterparty correlation analysis.
+Implementation: Simulate common factor and idiosyncratic normals, apply default thresholds, aggregate losses; calibrate correlation to tranche spreads.
+
+CreditMetrics (Portfolio Credit Risk Model)
+Summary: Extends copula ideas to rating migrations and defaults using a multivariate normal framework over discrete credit states, producing loss distributions for credit portfolios.
+Use Cases: Credit VaR, economic capital calculation, stress testing across rating transitions.
+Implementation: Monte Carlo or analytic asymptotic approximations; simulate latent asset values, map to ratings, compute portfolio mark‐to‐market changes.
+
+Merton Structural Credit Risk Model (KMV)
+Summary: Views equity as a call on assets and default when firm value falls below debt, providing a direct link between market data and default probability (EDF).
+Use Cases: Public company PD estimation; EDF input for portfolio risk; structural scenario analysis.
+Implementation: Back‐solve asset value and volatility from equity market cap and vol, compute distance‐to‐default, map to default probability via empirical tables.
+
+Reduced-Form (Intensity) Credit Risk Model
+Summary: Treats default as a point process with a stochastic hazard rate, calibrated directly to market spreads for pricing credit derivatives like CDS and bonds.
+Use Cases: CDS valuation, credit spread modeling, counterparty CVA.
+Implementation: Bootstrap hazard rates from CDS curves, simulate or integrate survival probabilities, price defaultable claims analytically or via Monte Carlo.
+
+Credit Valuation Adjustment (CVA) Model
+Summary: Adjusts derivative valuations for counterparty credit risk by combining expected exposure profiles with default probabilities and recoveries.
+Use Cases: All OTC derivative desks; pricing, hedging, and capital for counterparty risk; CVA desk management.
+Implementation: Monte Carlo simulation of exposure under netting and collateral, combine with hazard rates, integrate discounted expected loss; parallelizable by counterparty.
+
+Markowitz Mean–Variance Optimization
+Summary: The classic framework balancing expected return against variance to trace the efficient frontier, underpinning modern portfolio theory.
+Use Cases: Strategic asset allocation, risk budgeting, benchmark tracking error minimization.
+Implementation: Solve quadratic programs via closed-form linear algebra or QP solvers; requires reliable estimates of expected returns and covariance matrix (often stabilized by shrinkage).
+
+Black–Litterman Model
+Summary: A Bayesian enhancement of mean–variance that blends market‐implied (cap-weighted) returns with investor views to produce stable expected returns for optimization.
+Use Cases: Incorporating analyst views into institutional asset allocation; avoiding extreme MVO weights; reverse-optimization insights.
+Implementation: Compute implied equilibrium returns, set up view matrices and confidence levels, apply posterior formula, then run standard mean–variance optimizer.
+
+Multi-Factor Risk Models (APT & Fama–French)
+Summary: Decompose asset returns into exposures to systematic factors (e.g., market, size, value, momentum) plus idiosyncratic noise; underpin both return and risk analysis.
+Use Cases: Performance attribution, factor‐tilt strategies (smart beta), risk decomposition, portfolio construction.
+Implementation: Estimate betas via time-series or cross-sectional regressions; compute factor covariances; use factor exposures for risk and expected return models.
+
+Kelly Criterion (Optimal Growth Model)
+Summary: Determines the fraction of capital to allocate to maximize long-term logarithmic growth, balancing expected returns and variance—a dynamic growth-optimal sizing rule.
+Use Cases: Position sizing for high‐Sharpe, repeated bets (trading strategies, sports betting); theoretical benchmark for leverage decisions.
+Implementation: Estimate edge and variance, compute Kelly fraction or a conservative fraction thereof; monitor real-time P&L series to adjust sizing.
+
+CVaR Portfolio Optimization (Minimizing Tail Risk)
+Summary: Constructs portfolios by directly minimizing expected shortfall, focusing on worst-case losses rather than variance.
+Use Cases: Downside‐risk‐averse investors, regulatory tail‐risk limits (Solvency II), robust portfolio construction in fat-tailed markets.
+Implementation: Frame as a convex program or linear program with scenario‐based constraints, solve via CVXOPT, Gurobi or cvxpy on historical or simulated scenarios.
+
+Risk Parity (Equal Risk Contribution)
+Summary: Allocates capital so that each asset or class contributes equally to portfolio volatility, often resulting in higher weight to low‐vol assets and use of leverage.
+Use Cases: “All-Weather” strategies; diversified multi-asset portfolios; volatility targeting.
+Implementation: Estimate covariance matrix, solve nonlinear equations (or use iterative heuristics) to equalize marginal risk contributions; scale to target volatility.
+
+Statistical Arbitrage & Pairs Trading Model
+Summary: Identifies co-integrated or mean-reverting spreads between related assets and trades deviations, betting on statistical convergence.
+Use Cases: Equity market-neutral hedge funds; convergence trades in futures and ETFs; basis trading.
+Implementation: Test cointegration, estimate hedge ratios, compute z-scores of spread, generate entry/exit signals when deviations cross thresholds, manage risk via stops and position‐size scaling.
+
+Ornstein–Uhlenbeck Mean Reversion Model
+Summary: Captures continuous mean-reversion dynamics around a long-term level, widely used for interest rates, commodity spot prices, and statistical spread modeling.
+Use Cases: Short-rate modeling (Vasicek), commodity spot price dynamics, calibration for pairs trading strategies.
+Implementation: Fit AR(1)‐equivalent parameters via regression or MLE in Python/statsmodels; simulate via exact discrete update formula; apply to trading signals or scenario generation.
+
+Trend Following (Time-Series Momentum) Models
+Summary: Quantitative rules that go long assets showing recent positive returns and short those with negative, capturing persistent momentum across markets and horizons.
+Use Cases: Managed futures/CTA strategies; crisis alpha diversifier; sector rotation.
+Implementation: Compute price or return over lookback windows (e.g., 3–12 months), generate sign signals, allocate by equal risk or volatility scaling, rebalance periodically, account for transaction costs.
+
+Almgren–Chriss Optimal Execution Model
+Summary: Balances market-impact costs against price‐risk in scheduling large orders over a trading horizon, yielding an optimal execution trajectory.
+Use Cases: Algorithmic execution algorithms (Implementation Shortfall, VWAP), transaction cost analysis benchmarks.
+Implementation: Discretize time, set up and solve a convex quadratic program or use analytic closed-form schedules, calibrate impact parameters from historical trade data.
+
+Kyle Model of Market Impact (Market Microstructure)
+Summary: Theoretical model of informed trading and price impact, introducing the concept of Kyle’s lambda as the slope of price versus order flow and explaining liquidity dynamics.
+Use Cases: Market impact estimation; execution algorithm design; liquidity risk assessment.
+Implementation: Empirically estimate lambda by regressing price changes on signed volume imbalances; incorporate into optimal execution rules to modulate trade rates.
+
+Avellaneda–Stoikov Market Making Model
+Summary: A control-theoretic framework prescribing optimal dynamic bid/ask quotes based on inventory, volatility, and fill-rate trade‐offs.
+Use Cases: High-frequency market-making in equity, futures, and crypto; automated liquidity provision.
+Implementation: Calibrate fill-probability functions, maintain real-time estimates of volatility and inventory, compute optimal quote offsets via closed‐form approximations or numerical HJB solutions, update quotes continuously.
+
+ARIMA (AutoRegressive Integrated Moving Average) Time-Series Model
+Summary: A linear forecasting model capturing autocorrelation and trends via AR and MA components on differenced data, widely used for economic and some financial series.
+Use Cases: Macro forecasting (GDP, inflation); modeling yield changes; baseline for comparison before advanced methods.
+Implementation: Use statistical packages (statsmodels/pmdarima) to identify orders via ACF/PACF or automated criteria, fit via MLE, and generate forecasts with confidence intervals.
+
+Hidden Markov Model (Regime-Switching)
+Summary: Assumes observed returns come from a small set of latent regimes (e.g., bull vs bear), each with its own statistical properties, with Markov-governed transitions.
+Use Cases: Regime detection for tactical asset allocation, risk-on/off filtering, volatility regime modeling.
+Implementation: Fit via EM (Baum–Welch) using libraries like hmmlearn or pomegranate; infer state probabilities online and adapt strategy exposures accordingly.
+
+LSTM and Deep Learning Models for Financial Time-Series
+Summary: Recurrent neural nets with memory gating to learn complex, nonlinear temporal patterns in sequential data like prices, volumes, and auxiliary signals.
+Use Cases: Intraday price forecasting, volatility prediction, feature extraction for hybrid strategies, surrogate modeling for option pricing (deep hedging).
+Implementation: Build LSTM networks in Keras/PyTorch, train on windowed sequences with regularization (dropout, early stopping), deploy inference for live signals; retrain periodically to adapt to regime changes.
+
+Bachelier (Normal) Option Pricing Model
+Summary: Prices options assuming the underlying follows an arithmetic Brownian motion, allowing negative prices and linear payoff dynamics. Gained renewed relevance in negative-rate and commodity markets.
+Use Cases: Interest-rate options in negative environments; spread and commodity options around zero; normal‐vol quoting for caps and swaptions.
+Implementation: Compute analytic normal–model price and Greeks; calibrate normal vol quotes from market prices; embed in libraries as alternative to lognormal models.
+
+Loss Distribution Approach (LDA) for Operational Risk
+Summary: Combines event frequency and severity distributions to model aggregate yearly losses for operational risk, producing high-quantile estimates for regulatory capital.
+Use Cases: Bank AMA/ICAAP internal risk capital; insurance aggregate loss modeling; scenario analysis for extreme operational events.
+Implementation: Fit frequency (e.g. Poisson) and severity (heavy-tailed) distributions from loss data, then Monte Carlo‐simulate aggregate losses or apply fast Fourier convolution, estimate tail quantiles for VaR/ES.
