@@ -12,6 +12,7 @@ class RateParams(NamedTuple):
 class EquityParams(NamedTuple):
     mu: float             # drift
     q: float              # dividend yield
+    S0: float             # initial stock price
     v0: float             # initial variance
     kappa_v: float        # variance mean-reversion
     theta_v: float        # variance long-run

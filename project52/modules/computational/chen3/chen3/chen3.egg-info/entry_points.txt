@@ -1,0 +1,2 @@
+[console_scripts]
+chen3-price = chen3.cli.main:cli
