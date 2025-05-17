@@ -258,4 +258,80 @@ def adaptive_milstein(
         
         n_steps *= 2
     
-    return result 
+    return result
+
+class Milstein:
+    """
+    Milstein scheme for numerical integration of SDEs.
+    
+    This class implements the Milstein scheme for simulating stochastic
+    processes. It provides a simple interface for simulating paths of various
+    stochastic differential equations.
+    
+    Example:
+        >>> scheme = Milstein(kappa=2.0, theta=0.04, sigma=0.3)
+        >>> paths = scheme.simulate(v0=0.04, dt=0.01, n_steps=100, n_paths=1000)
+    """
+    
+    def __init__(self, kappa: float, theta: float, sigma: float):
+        """
+        Initialize the Milstein scheme.
+        
+        Args:
+            kappa: Mean reversion speed
+            theta: Long-term mean
+            sigma: Volatility
+        """
+        self.kappa = kappa
+        self.theta = theta
+        self.sigma = sigma
+    
+    def simulate(
+        self,
+        v0: float,
+        dt: float,
+        n_steps: int,
+        n_paths: int
+    ) -> np.ndarray:
+        """
+        Simulate paths using the Milstein scheme.
+        
+        Args:
+            v0: Initial value
+            dt: Time step size
+            n_steps: Number of time steps
+            n_paths: Number of paths to simulate
+            
+        Returns:
+            np.ndarray: Simulated paths (n_paths x (n_steps + 1))
+        """
+        # Initialize paths
+        paths = np.zeros((n_paths, n_steps + 1))
+        paths[:, 0] = v0
+        
+        # Generate random increments
+        dW = np.random.normal(0, np.sqrt(dt), (n_paths, n_steps))
+        
+        # Simulate paths
+        for i in range(n_steps):
+            # Drift term
+            drift = self.kappa * (self.theta - paths[:, i])
+            
+            # Diffusion term
+            diffusion = self.sigma * np.sqrt(paths[:, i])
+            
+            # Milstein correction term
+            correction = 0.25 * self.sigma**2 * (dW[:, i]**2 - dt)
+            
+            # Update paths
+            paths[:, i+1] = (
+                paths[:, i] +
+                drift * dt +
+                diffusion * dW[:, i] +
+                correction
+            )
+            
+            # Ensure positivity
+            paths[:, i+1] = np.maximum(paths[:, i+1], 0)
+        
+        return paths 

@@ -82,8 +82,8 @@ Example Usage:
 
 from typing import Union, Optional
 import numpy as np
-from pydantic import BaseModel, Field, validator
-from .correlation import (
+from pydantic import BaseModel, Field, field_validator
+from chen3.correlation import (
     TimeDependentCorrelation,
     StateDependentCorrelation,
     RegimeSwitchingCorrelation,
@@ -157,15 +157,33 @@ class RateParams(BaseModel):
         description="Initial interest rate level"
     )
 
-    @validator('sigma')
+    @field_validator('kappa')
+    def validate_kappa(cls, v):
+        if v <= 0:
+            raise ValueError("Mean reversion speed must be positive")
+        return v
+
+    @field_validator('theta')
+    def validate_theta(cls, v):
+        if v <= 0:
+            raise ValueError("Long-term mean must be positive")
+        return v
+
+    @field_validator('sigma')
     def validate_sigma(cls, v, values):
-        """Validate the Feller condition: 2κθ > σ²"""
-        if 'kappa' in values and 'theta' in values:
-            if 2 * values['kappa'] * values['theta'] <= v * v:
-                logger.warning(
-                    "Feller condition violated: 2κθ ≤ σ². "
-                    "This may lead to zero rates with positive probability."
-                )
+        if v <= 0:
+            raise ValueError("Volatility must be positive")
+        kappa = values.data.get('kappa')
+        theta = values.data.get('theta')
+        if kappa is not None and theta is not None:
+            if 2 * kappa * theta <= v**2:
+                raise ValueError("Feller condition violated: 2κθ ≤ σ²")
+        return v
+
+    @field_validator('r0')
+    def validate_r0(cls, v):
+        if v < 0:
+            raise ValueError("Initial rate must be non-negative")
         return v
 
 class EquityParams(BaseModel):
@@ -256,15 +274,45 @@ class EquityParams(BaseModel):
         description="Volatility of the variance process"
     )
 
-    @validator('sigma_v')
+    @field_validator('S0')
+    def validate_S0(cls, v):
+        if v <= 0:
+            raise ValueError("Initial stock price must be positive")
+        return v
+
+    @field_validator('v0')
+    def validate_v0(cls, v):
+        if v <= 0:
+            raise ValueError("Initial variance must be positive")
+        return v
+
+    @field_validator('kappa_v')
+    def validate_kappa_v(cls, v):
+        if v <= 0:
+            raise ValueError("Variance mean reversion speed must be positive")
+        return v
+
+    @field_validator('theta_v')
+    def validate_theta_v(cls, v):
+        if v <= 0:
+            raise ValueError("Variance long-term mean must be positive")
+        return v
+
+    @field_validator('sigma_v')
     def validate_sigma_v(cls, v, values):
-        """Validate the Feller condition for variance: 2κ_vθ_v > σ_v²"""
-        if 'kappa_v' in values and 'theta_v' in values:
-            if 2 * values['kappa_v'] * values['theta_v'] <= v * v:
-                logger.warning(
-                    "Feller condition violated for variance: 2κ_vθ_v ≤ σ_v². "
-                    "This may lead to zero variance with positive probability."
-                )
+        if v <= 0:
+            raise ValueError("Variance volatility must be positive")
+        kappa_v = values.data.get('kappa_v')
+        theta_v = values.data.get('theta_v')
+        if kappa_v is not None and theta_v is not None:
+            if 2 * kappa_v * theta_v <= v**2:
+                raise ValueError("Feller condition violated: 2κ_vθ_v ≤ σ_v²")
+        return v
+
+    @field_validator('q')
+    def validate_q(cls, v):
+        if v < 0:
+            raise ValueError("Dividend yield must be non-negative")
         return v
 
 class ModelParams(BaseModel):
@@ -358,7 +406,7 @@ class ModelParams(BaseModel):
         CopulaCorrelation
     ]
 
-    @validator('correlation')
+    @field_validator('correlation')
     def validate_correlation(cls, v):
         """Validate the correlation structure."""
         if isinstance(v, np.ndarray):

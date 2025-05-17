@@ -1,0 +1,4 @@
+# file: /Users/m/Desktop/project52/project52/modules/computational/chen3/chen3/pricing/__init__.py
+# hypothesis_version: 6.131.18
+
+['EuropeanCall', 'EuropeanPut']

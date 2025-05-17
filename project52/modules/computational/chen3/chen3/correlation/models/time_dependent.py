@@ -56,9 +56,9 @@ class TimeDependentCorrelation(BaseCorrelation):
         Raises:
             CorrelationValidationError: If initialization fails
         """
-        super().__init__(n_factors=n_factors, name=name)
         self.time_points = np.asarray(time_points)
         self.correlation_matrices = correlation_matrices
+        super().__init__(n_factors=n_factors, name=name)
         self._validate_initialization()
         self._setup_interpolation()
     
@@ -77,8 +77,21 @@ class TimeDependentCorrelation(BaseCorrelation):
         if not np.all(np.diff(self.time_points) > 0):
             raise CorrelationValidationError("Time points must be strictly increasing")
         
-        for corr in self.correlation_matrices:
-            self._validate_correlation_matrix(corr)
+        for i, corr_matrix in enumerate(self.correlation_matrices):
+            if not np.allclose(corr_matrix, corr_matrix.T):
+                raise CorrelationValidationError(
+                    f"Correlation matrix at time {self.time_points[i]} is not symmetric"
+                )
+            if not np.all(np.diag(corr_matrix) == 1.0):
+                raise CorrelationValidationError(
+                    f"Correlation matrix at time {self.time_points[i]} must have ones on diagonal"
+                )
+            try:
+                np.linalg.cholesky(corr_matrix)
+            except np.linalg.LinAlgError:
+                raise CorrelationValidationError(
+                    f"Correlation matrix at time {self.time_points[i]} is not positive definite"
+                )
     
     def _setup_interpolation(self) -> None:
         """

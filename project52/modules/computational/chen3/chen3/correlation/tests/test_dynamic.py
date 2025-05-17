@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from ..models.dynamic import DynamicCorrelation, create_dynamic_correlation
 from ..models.constant import ConstantCorrelation
-from ..models.time_dependent import TimeDependentCorrelation
+from chen3.correlation import TimeDependentCorrelation
 from ..utils.exceptions import CorrelationValidationError, CorrelationError
 
 def test_initialization():

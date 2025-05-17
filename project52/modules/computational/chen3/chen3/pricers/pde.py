@@ -1,6 +1,14 @@
 # -------------------- pricers/pde.py --------------------
-"""PDE pricer using finite-difference methods."""
+"""
+PDE-based option pricing using finite-difference methods.
+
+This module implements a finite-difference method (FDM) solver for the
+Black-Scholes PDE to price European call options. It uses an explicit
+time-stepping scheme with central differences for spatial derivatives.
+"""
+
 import numpy as np
+from typing import Tuple, Optional
 
 
 def solve_black_scholes_pde(
@@ -13,7 +21,30 @@ def solve_black_scholes_pde(
     n_t: int = 200
 ) -> float:
     """
-    Price European call via explicit FDM.
+    Price a European call option using explicit finite-difference method.
+    
+    This function solves the Black-Scholes PDE using an explicit FDM scheme:
+    - Central differences for spatial derivatives (delta and gamma)
+    - Forward Euler for time stepping
+    - Linear boundary conditions
+    - Final condition: max(S-K, 0)
+    
+    Args:
+        S_max (float): Maximum stock price in the grid
+        K (float): Strike price
+        r (float): Risk-free interest rate
+        sigma (float): Volatility
+        T (float): Time to maturity
+        n_S (int): Number of spatial grid points (default: 200)
+        n_t (int): Number of time steps (default: 200)
+    
+    Returns:
+        float: Option price at S=K
+    
+    Note:
+        The method uses a uniform grid in both space and time.
+        The stability condition dt <= dx^2/(2*sigma^2*S^2) should be
+        satisfied for accurate results.
     """
     dS = S_max / n_S
     dt = T / n_t
@@ -41,8 +72,22 @@ def solve_black_scholes_pde(
 
 class PDEPricer:
     """
-    PDE-based pricer for European calls via finite-difference.
+    PDE-based pricer for European call options using finite-difference methods.
+    
+    This class provides a convenient interface for pricing European call
+    options using the explicit finite-difference method. It encapsulates
+    the grid parameters and pricing logic in a single object.
+    
+    Attributes:
+        S_max (float): Maximum stock price in the grid
+        K (float): Strike price
+        r (float): Risk-free interest rate
+        sigma (float): Volatility
+        T (float): Time to maturity
+        n_S (int): Number of spatial grid points
+        n_t (int): Number of time steps
     """
+    
     def __init__(
         self,
         S_max: float,
@@ -53,6 +98,18 @@ class PDEPricer:
         n_S: int = 200,
         n_t: int = 200
     ):
+        """
+        Initialize the PDE pricer with model parameters.
+        
+        Args:
+            S_max (float): Maximum stock price in the grid
+            K (float): Strike price
+            r (float): Risk-free interest rate
+            sigma (float): Volatility
+            T (float): Time to maturity
+            n_S (int): Number of spatial grid points (default: 200)
+            n_t (int): Number of time steps (default: 200)
+        """
         self.S_max = S_max
         self.K = K
         self.r = r
@@ -63,7 +120,14 @@ class PDEPricer:
 
     def price(self) -> float:
         """
-        Solve the PDE and return the option price.
+        Solve the Black-Scholes PDE and return the option price.
+        
+        Returns:
+            float: The option price at the strike price
+        
+        Note:
+            This method uses the explicit finite-difference scheme
+            implemented in solve_black_scholes_pde.
         """
         return solve_black_scholes_pde(
             self.S_max, self.K, self.r, self.sigma, self.T,

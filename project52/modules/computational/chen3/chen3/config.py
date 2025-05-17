@@ -82,7 +82,7 @@ Example Usage:
 """
 
 from typing import Optional, Literal
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 import numpy as np
 
 class Settings(BaseModel):
@@ -213,7 +213,7 @@ class Settings(BaseModel):
         description="Random number generator seed"
     )
     
-    @validator('n_jobs')
+    @field_validator('n_jobs')
     def validate_n_jobs(cls, v, values):
         """
         Validate the number of parallel jobs.
@@ -232,7 +232,7 @@ class Settings(BaseModel):
             raise ValueError("n_jobs must be positive when use_parallel is True")
         return v
     
-    @validator('backend')
+    @field_validator('backend')
     def validate_backend(cls, v):
         """
         Validate the computational backend.

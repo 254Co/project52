@@ -1,0 +1,4 @@
+# file: /Users/m/Desktop/project52/project52/modules/computational/chen3/chen3/config.py
+# hypothesis_version: 6.131.18
+
+[0.01, 0.1, 100, 1000, 10000, 'Number of time steps', 'Time step size', 'backend', 'cuda', 'forbid', 'n_jobs', 'numpy', 'use_parallel']

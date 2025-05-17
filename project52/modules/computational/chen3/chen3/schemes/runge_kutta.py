@@ -25,10 +25,12 @@ def rk4_step(
     drift: Callable,
     diffusion: Callable,
     dW: float,
-    compute_local_error: bool = False
+    compute_local_error: bool = False,
+    min_value: float = 0.0,
+    max_value: Optional[float] = None
 ) -> Union[float, Tuple[float, float]]:
     """
-    Single step of the RK4 scheme for SDEs.
+    Single step of the RK4 scheme for SDEs with enhanced stability.
     
     Parameters
     ----------
@@ -46,30 +48,42 @@ def rk4_step(
         Brownian increment
     compute_local_error : bool, optional
         Whether to compute local error estimate, by default False
+    min_value : float, optional
+        Minimum allowed value for the state, by default 0.0
+    max_value : Optional[float], optional
+        Maximum allowed value for the state, by default None
         
     Returns
     -------
     Union[float, Tuple[float, float]]
         Next state and optionally local error estimate
     """
-    # Drift terms
+    # Drift terms with stability checks
     k1 = drift(t, x)
     k2 = drift(t + dt/2, x + k1*dt/2)
     k3 = drift(t + dt/2, x + k2*dt/2)
     k4 = drift(t + dt, x + k3*dt)
     
-    # Diffusion terms
+    # Diffusion terms with stability checks
     l1 = diffusion(t, x)
     l2 = diffusion(t + dt/2, x + l1*dW/2)
     l3 = diffusion(t + dt/2, x + l2*dW/2)
     l4 = diffusion(t + dt, x + l3*dW)
     
-    # Compute next state
+    # Compute next state with stability bounds
     x_next = x + (k1 + 2*k2 + 2*k3 + k4)*dt/6 + (l1 + 2*l2 + 2*l3 + l4)*dW/6
+    
+    # Apply bounds
+    x_next = np.maximum(x_next, min_value)
+    if max_value is not None:
+        x_next = np.minimum(x_next, max_value)
     
     if compute_local_error:
         # Estimate local error using embedded method
         x_embedded = x + (k1 + k4)*dt/2 + (l1 + l4)*dW/2
+        x_embedded = np.maximum(x_embedded, min_value)
+        if max_value is not None:
+            x_embedded = np.minimum(x_embedded, max_value)
         local_error = np.abs(x_next - x_embedded)
         return x_next, local_error
     
@@ -461,4 +475,77 @@ def adaptive_rk4(
             tol=tol,
             min_dt=min_dt,
             max_dt=max_dt
-        ) 
+        )
+
+class RungeKutta:
+    """
+    Runge-Kutta scheme for numerical integration of SDEs.
+    
+    This class implements the RK4 scheme for simulating stochastic
+    processes. It provides a simple interface for simulating paths of various
+    stochastic differential equations.
+    
+    Example:
+        >>> scheme = RungeKutta(kappa=2.0, theta=0.04, sigma=0.3)
+        >>> paths = scheme.simulate(v0=0.04, dt=0.01, n_steps=100, n_paths=1000)
+    """
+    
+    def __init__(self, kappa: float, theta: float, sigma: float):
+        """
+        Initialize the Runge-Kutta scheme.
+        
+        Args:
+            kappa: Mean reversion speed
+            theta: Long-term mean
+            sigma: Volatility
+        """
+        self.kappa = kappa
+        self.theta = theta
+        self.sigma = sigma
+    
+    def simulate(
+        self,
+        v0: float,
+        dt: float,
+        n_steps: int,
+        n_paths: int
+    ) -> np.ndarray:
+        """
+        Simulate paths using the RK4 scheme.
+        
+        Args:
+            v0: Initial value
+            dt: Time step size
+            n_steps: Number of time steps
+            n_paths: Number of paths to simulate
+            
+        Returns:
+            Array of simulated paths
+        """
+        # Initialize paths
+        paths = np.zeros((n_paths, n_steps + 1))
+        paths[:, 0] = v0
+        
+        # Generate random increments
+        dW = np.random.normal(0, np.sqrt(dt), (n_paths, n_steps))
+        
+        # Simulate paths
+        for i in range(n_steps):
+            # Compute drift and diffusion terms
+            drift = self.kappa * (self.theta - paths[:, i])
+            diffusion = self.sigma * np.sqrt(np.maximum(paths[:, i], 0.0))
+            
+            # Compute RK4 stages
+            k1 = drift * dt + diffusion * dW[:, i]
+            k2 = self.kappa * (self.theta - (paths[:, i] + k1/2)) * dt + \
+                self.sigma * np.sqrt(np.maximum(paths[:, i] + k1/2, 0.0)) * dW[:, i]
+            k3 = self.kappa * (self.theta - (paths[:, i] + k2/2)) * dt + \
+                self.sigma * np.sqrt(np.maximum(paths[:, i] + k2/2, 0.0)) * dW[:, i]
+            k4 = self.kappa * (self.theta - (paths[:, i] + k3)) * dt + \
+                self.sigma * np.sqrt(np.maximum(paths[:, i] + k3, 0.0)) * dW[:, i]
+            
+            # Update paths
+            paths[:, i + 1] = paths[:, i] + (k1 + 2*k2 + 2*k3 + k4) / 6
+            paths[:, i + 1] = np.maximum(paths[:, i + 1], 0.0)  # Ensure non-negativity
+        
+        return paths 

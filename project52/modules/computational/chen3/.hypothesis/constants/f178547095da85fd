@@ -1,0 +1,4 @@
+# file: /Users/m/Desktop/project52/project52/modules/computational/chen3/chen3/numerical_engines/variance_reduction.py
+# hypothesis_version: 6.131.18
+
+[0.0, 'antithetic', 'antithetic_variates', 'control', 'control_variates', 'importance', 'importance_sampling', 'multi_level', 'stratified', 'stratified_sampling']

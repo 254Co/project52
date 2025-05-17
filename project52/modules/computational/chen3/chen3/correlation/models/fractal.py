@@ -1,12 +1,24 @@
 """
-Fractal Correlation Implementation
+Fractal Correlation Implementation for the Chen3 Model
 
 This module implements a fractal-based correlation structure for the Chen3 model,
 where correlations are defined through fractal geometry and self-similarity properties.
 This allows for modeling long-range dependencies and scaling behavior in the correlation structure.
+
+The implementation uses fractal mathematics to model correlations between factors:
+- Hurst exponent controls the rate of correlation decay
+- Self-similarity properties capture long-range dependencies
+- Time-dependent and state-dependent Hurst exponents are supported
+- Fractal dimension influences the correlation structure
+
+The correlation structure is particularly useful for modeling:
+- Long-range market dependencies
+- Power-law scaling in correlations
+- Time-varying persistence
+- Self-similar market patterns
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Callable
 import numpy as np
 from ..core.base import BaseCorrelation
 from ..utils.exceptions import CorrelationError, CorrelationValidationError
@@ -14,7 +26,7 @@ from ..utils.logging_config import logger
 
 class FractalCorrelation(BaseCorrelation):
     """
-    Fractal-based correlation structure.
+    Fractal-based correlation structure for the Chen3 model.
     
     This class implements correlations through fractal geometry,
     where the correlation matrix is constructed from fractal dimensions
@@ -28,36 +40,47 @@ class FractalCorrelation(BaseCorrelation):
     
     where:
     - H: Hurst exponent (0 < H < 1)
+        * H > 0.5: Long-range persistence
+        * H = 0.5: Random walk
+        * H < 0.5: Anti-persistence
     - i, j: Factor indices
     
     The Hurst exponent can be time-dependent or state-dependent:
     H(t) = f(t, state)
     
     Attributes:
-        hurst (float): Hurst exponent
-        hurst_function (callable): Function for computing Hurst exponent
-        n_factors (int): Number of factors
-        name (str): Name of the correlation structure
+        hurst (float): Base Hurst exponent
+        hurst_function (Callable): Function for computing time/state-dependent
+            Hurst exponent
+        n_factors (int): Number of factors in the correlation structure
+        name (str): Name identifier for the correlation structure
+    
+    Note:
+        The correlation structure ensures positive definiteness through
+        the exponential decay of correlations with distance.
     """
     
     def __init__(
         self,
         hurst: Optional[float] = None,
-        hurst_function: Optional[callable] = None,
+        hurst_function: Optional[Callable] = None,
         n_factors: int = 3,
         name: str = "FractalCorrelation"
     ):
         """
-        Initialize fractal correlation.
+        Initialize fractal correlation structure.
         
         Args:
-            hurst: Hurst exponent
-            hurst_function: Function for computing Hurst exponent
-            n_factors: Number of factors
-            name: Name of the correlation structure
+            hurst (Optional[float]): Base Hurst exponent. If None, defaults to 0.5
+                (random walk behavior).
+            hurst_function (Optional[Callable]): Function for computing time/state-
+                dependent Hurst exponent. Should take (t, state) and return H.
+            n_factors (int): Number of factors in the correlation structure
+            name (str): Name identifier for the correlation structure
             
         Raises:
-            CorrelationValidationError: If initialization fails
+            CorrelationValidationError: If Hurst exponent is invalid
+            ValueError: If initialization parameters are invalid
         """
         super().__init__(n_factors=n_factors, name=name)
         self.hurst = hurst or 0.5
@@ -65,12 +88,16 @@ class FractalCorrelation(BaseCorrelation):
         self._validate_initialization()
         logger.debug(f"Initialized {self.name} with {n_factors} factors")
     
-    def _validate_initialization(self):
+    def _validate_initialization(self) -> None:
         """
         Validate initialization parameters.
         
+        Performs comprehensive validation of initialization parameters:
+        1. Hurst exponent is in valid range (0, 1)
+        2. Hurst function returns valid values
+        
         Raises:
-            CorrelationValidationError: If validation fails
+            CorrelationValidationError: If any validation check fails
         """
         if not 0 < self.hurst < 1:
             raise CorrelationValidationError("Hurst exponent must be in (0, 1)")
@@ -81,17 +108,21 @@ class FractalCorrelation(BaseCorrelation):
         state: Optional[Dict[str, float]] = None
     ) -> float:
         """
-        Compute Hurst exponent at time t.
+        Compute Hurst exponent at time t and state.
+        
+        This method computes the current Hurst exponent using the Hurst function,
+        ensuring it remains in the valid range (0, 1).
         
         Args:
-            t: Time point
-            state: Current state variables
+            t (float): Current time point
+            state (Optional[Dict[str, float]]): Current state variables
+                that may influence the Hurst exponent
             
         Returns:
-            Hurst exponent
+            float: Valid Hurst exponent in range (0, 1)
             
         Raises:
-            CorrelationError: If computation fails
+            CorrelationError: If Hurst computation fails
         """
         try:
             H = self.hurst_function(t, state)
@@ -109,17 +140,23 @@ class FractalCorrelation(BaseCorrelation):
         state: Optional[Dict[str, float]] = None
     ) -> np.ndarray:
         """
-        Get the correlation matrix at time t.
+        Get the correlation matrix at time t and state.
+        
+        This method computes the full correlation matrix by:
+        1. Computing current Hurst exponent
+        2. Constructing correlations using the fractal decay formula
+        3. Validating the resulting matrix
         
         Args:
-            t: Time point
-            state: Current state variables
+            t (float): Time point at which to compute correlations
+            state (Optional[Dict[str, float]]): Current state variables
+                that may influence correlations
             
         Returns:
-            Correlation matrix (n_factors x n_factors)
+            np.ndarray: Valid correlation matrix (n_factors x n_factors)
             
         Raises:
-            CorrelationError: If computation fails
+            CorrelationError: If correlation computation fails
         """
         try:
             # Compute Hurst exponent
@@ -143,7 +180,12 @@ class FractalCorrelation(BaseCorrelation):
             raise CorrelationError(f"Failed to compute correlation matrix: {str(e)}")
     
     def __str__(self) -> str:
-        """String representation of the correlation structure."""
+        """
+        String representation of the correlation structure.
+        
+        Returns:
+            str: Simple string representation showing key parameters
+        """
         return (
             f"{self.name}("
             f"n_factors={self.n_factors}, "
@@ -151,7 +193,12 @@ class FractalCorrelation(BaseCorrelation):
         )
     
     def __repr__(self) -> str:
-        """Detailed string representation of the correlation structure."""
+        """
+        Detailed string representation of the correlation structure.
+        
+        Returns:
+            str: Detailed string representation showing all parameters
+        """
         return (
             f"{self.__class__.__name__}("
             f"hurst={self.hurst}, "
@@ -166,18 +213,29 @@ def create_fractal_correlation(
     decay_rate: float = 0.1
 ) -> FractalCorrelation:
     """
-    Create a fractal correlation structure.
+    Create a fractal correlation structure with specified parameters.
     
-    This function creates a fractal correlation structure with specified
-    number of factors and Hurst exponent type.
+    This factory function creates a FractalCorrelation instance with
+    predefined Hurst exponent functions for common use cases:
+    - constant: Time-invariant Hurst exponent (H = 0.5)
+    - decay: Exponentially decaying Hurst exponent
+    - oscillate: Oscillating Hurst exponent with cosine function
     
     Args:
-        n_factors: Number of factors
-        hurst_type: Type of Hurst exponent function ('constant', 'decay', 'oscillate')
-        decay_rate: Rate of Hurst exponent decay
+        n_factors (int): Number of factors in the correlation structure
+        hurst_type (str): Type of Hurst exponent function to use
+            ('constant', 'decay', or 'oscillate')
+        decay_rate (float): Rate parameter for Hurst exponent decay/oscillation
         
     Returns:
-        FractalCorrelation instance
+        FractalCorrelation: Configured fractal correlation instance
+        
+    Raises:
+        ValueError: If hurst_type is invalid
+        
+    Example:
+        >>> corr = create_fractal_correlation(n_factors=3, hurst_type='decay')
+        >>> matrix = corr.get_correlation_matrix(t=1.0)
     """
     # Create Hurst exponent function
     if hurst_type == 'constant':

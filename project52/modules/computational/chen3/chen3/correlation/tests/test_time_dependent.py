@@ -4,7 +4,7 @@ Unit tests for the time-dependent correlation module.
 
 import numpy as np
 import pytest
-from ..models.time_dependent import TimeDependentCorrelation
+from chen3.correlation import TimeDependentCorrelation
 from ..utils.exceptions import CorrelationError, CorrelationValidationError
 
 def create_test_data():

@@ -2,11 +2,18 @@
 Numerical validation and stability checks for the Chen3 package.
 
 This module provides functions for validating numerical stability and
-parameter consistency in the Chen3 model.
+parameter consistency in the Chen3 model. It includes checks for:
+- Feller condition for mean-reverting processes
+- Correlation matrix validity and positive definiteness
+- Numerical stability of arrays and time series
+- Time grid consistency for simulations
+
+The module uses a combination of mathematical conditions and numerical
+tolerance checks to ensure the stability and validity of calculations.
 """
 
 import numpy as np
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union, List
 from .exceptions import ValidationError, NumericalError
 from .logging import logger
 
@@ -17,16 +24,24 @@ def check_feller_condition(
     process_name: str = "process"
 ) -> bool:
     """
-    Check the Feller condition: 2κθ > σ²
+    Check the Feller condition: 2κθ > σ² for mean-reverting processes.
+    
+    The Feller condition ensures that the variance process remains strictly
+    positive in a mean-reverting process. This is a critical condition for
+    the stability of the Chen3 model.
     
     Args:
-        kappa: Mean reversion speed
-        theta: Long-term mean
-        sigma: Volatility
-        process_name: Name of the process for logging
+        kappa (float): Mean reversion speed parameter
+        theta (float): Long-term mean level parameter
+        sigma (float): Volatility parameter
+        process_name (str): Name of the process for logging purposes
     
     Returns:
-        bool: True if condition is satisfied, False otherwise
+        bool: True if the Feller condition is satisfied, False otherwise
+    
+    Note:
+        If the condition is violated, a warning is logged with the specific
+        values that caused the violation.
     """
     condition = 2 * kappa * theta > sigma * sigma
     if not condition:
@@ -41,15 +56,30 @@ def validate_correlation_matrix(
     tolerance: float = 1e-10
 ) -> Tuple[bool, Optional[str]]:
     """
-    Validate a correlation matrix.
+    Validate a correlation matrix for the Chen3 model.
+    
+    Performs comprehensive checks on the correlation matrix:
+    1. Shape validation (must be 3x3)
+    2. Symmetry check
+    3. Diagonal elements check (must be 1.0)
+    4. Positive definiteness check using Cholesky decomposition
+    5. Correlation bounds check (-1 ≤ ρ ≤ 1)
     
     Args:
-        corr_matrix: The correlation matrix to validate
-        tolerance: Numerical tolerance for checks
+        corr_matrix (np.ndarray): The correlation matrix to validate
+        tolerance (float): Numerical tolerance for floating-point comparisons
     
     Returns:
-        Tuple[bool, Optional[str]]: (is_valid, error_message)
+        Tuple[bool, Optional[str]]: A tuple containing:
+            - bool: True if matrix is valid, False otherwise
+            - Optional[str]: Error message if invalid, None if valid
+    
+    Raises:
+        ValidationError: If the input is not a numpy array
     """
+    if not isinstance(corr_matrix, np.ndarray):
+        raise ValidationError("Input must be a numpy array")
+        
     # Check shape
     if corr_matrix.shape != (3, 3):
         return False, f"Correlation matrix must be 3x3, got shape {corr_matrix.shape}"
@@ -78,19 +108,35 @@ def check_numerical_stability(
     values: np.ndarray,
     min_value: float = 1e-10,
     max_value: float = 1e10,
-    name: str = "values"
+    name: str = "values",
+    max_growth_rate: Optional[float] = None,
+    max_volatility: Optional[float] = None
 ) -> bool:
     """
     Check numerical stability of an array of values.
     
+    Performs comprehensive numerical stability checks:
+    1. NaN detection
+    2. Infinite value detection
+    3. Minimum value threshold check
+    4. Maximum value threshold check
+    5. Growth rate check (if max_growth_rate is provided)
+    6. Volatility check (if max_volatility is provided)
+    
     Args:
-        values: Array of values to check
-        min_value: Minimum allowed value
-        max_value: Maximum allowed value
-        name: Name of the values for logging
+        values (np.ndarray): Array of values to check
+        min_value (float): Minimum allowed value (default: 1e-10)
+        max_value (float): Maximum allowed value (default: 1e10)
+        name (str): Name of the values for logging purposes
+        max_growth_rate (Optional[float]): Maximum allowed growth rate
+        max_volatility (Optional[float]): Maximum allowed volatility
     
     Returns:
-        bool: True if values are stable, False otherwise
+        bool: True if all values are stable, False otherwise
+    
+    Note:
+        If any check fails, an appropriate error or warning is logged
+        with specific details about the violation.
     """
     if np.any(np.isnan(values)):
         logger.error(f"NaN values detected in {name}")
@@ -114,6 +160,28 @@ def check_numerical_stability(
         )
         return False
     
+    # Check growth rate if specified
+    if max_growth_rate is not None:
+        log_returns = np.log(np.abs(values[1:] / values[:-1]))
+        growth_rate = np.mean(log_returns)
+        if abs(growth_rate) > max_growth_rate:
+            logger.warning(
+                f"Growth rate exceeds maximum threshold in {name}: "
+                f"rate = {abs(growth_rate):.4f} > {max_growth_rate:.4f}"
+            )
+            return False
+    
+    # Check volatility if specified
+    if max_volatility is not None:
+        log_returns = np.log(np.abs(values[1:] / values[:-1]))
+        volatility = np.std(log_returns)
+        if volatility > max_volatility:
+            logger.warning(
+                f"Volatility exceeds maximum threshold in {name}: "
+                f"vol = {volatility:.4f} > {max_volatility:.4f}"
+            )
+            return False
+    
     return True
 
 def validate_time_grid(
@@ -122,15 +190,26 @@ def validate_time_grid(
     max_dt: float = 1.0
 ) -> Tuple[bool, Optional[str]]:
     """
-    Validate a time grid for simulation.
+    Validate a time grid for simulation purposes.
+    
+    Performs comprehensive checks on the time grid:
+    1. Strictly increasing time points
+    2. Minimum time step check
+    3. Maximum time step check
     
     Args:
-        time_points: Array of time points
-        min_dt: Minimum allowed time step
-        max_dt: Maximum allowed time step
+        time_points (np.ndarray): Array of time points
+        min_dt (float): Minimum allowed time step (default: 1e-6)
+        max_dt (float): Maximum allowed time step (default: 1.0)
     
     Returns:
-        Tuple[bool, Optional[str]]: (is_valid, error_message)
+        Tuple[bool, Optional[str]]: A tuple containing:
+            - bool: True if time grid is valid, False otherwise
+            - Optional[str]: Error message if invalid, None if valid
+    
+    Note:
+        The time grid must be strictly increasing to ensure proper
+        simulation of the stochastic processes.
     """
     if not np.all(np.diff(time_points) > 0):
         return False, "Time points must be strictly increasing"

@@ -17,6 +17,7 @@ where Z_t is a standard normal random variable.
 
 import numpy as np
 from numba import njit
+from typing import Callable, Optional, Tuple
 
 
 def euler_scheme(drift_fn, diffusion_fn, dt: float):
@@ -66,3 +67,71 @@ def euler_scheme(drift_fn, diffusion_fn, dt: float):
         return state + drift_fn(state)*dt + diffusion_fn(state)*np.sqrt(dt)*z
     
     return step
+
+
+class EulerMaruyama:
+    """
+    Euler-Maruyama scheme for numerical integration of SDEs.
+
+    This class implements the Euler-Maruyama scheme for numerical integration
+    of stochastic differential equations. It provides methods for simulating
+    paths of the solution.
+
+    Attributes:
+        mu (float): Drift coefficient
+        sigma (float): Diffusion coefficient
+    """
+
+    def __init__(self, mu: Callable, sigma: Callable):
+        """
+        Initialize the Euler-Maruyama scheme.
+
+        Args:
+            mu: Drift coefficient function
+            sigma: Diffusion coefficient function
+
+        Raises:
+            ValueError: If sigma is negative
+        """
+        self.mu = mu
+        self.sigma = sigma
+        
+        if sigma(0) < 0:
+            raise ValueError("Diffusion coefficient must be non-negative")
+
+    def simulate(
+        self,
+        S0: float,
+        dt: float,
+        n_steps: int,
+        n_paths: int
+    ) -> np.ndarray:
+        """
+        Simulate paths using the Euler-Maruyama scheme.
+
+        Args:
+            S0: Initial value
+            dt: Time step size
+            n_steps: Number of time steps
+            n_paths: Number of paths to simulate
+
+        Returns:
+            Array of simulated paths
+        """
+        # Initialize paths
+        paths = np.zeros((n_paths, n_steps + 1))
+        paths[:, 0] = S0
+
+        # Generate random increments
+        dW = np.random.normal(0, np.sqrt(dt), (n_paths, n_steps))
+
+        # Simulate paths
+        for i in range(n_steps):
+            t = i * dt
+            paths[:, i + 1] = (
+                paths[:, i] +
+                self.mu(t) * dt +
+                self.sigma(t) * dW[:, i]
+            )
+
+        return paths
