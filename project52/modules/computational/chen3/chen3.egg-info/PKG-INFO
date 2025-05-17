@@ -1,0 +1,26 @@
+Metadata-Version: 2.4
+Name: chen3
+Version: 0.1.0
+Summary: Three-factor Chen model equity derivatives pricing and risk engine
+Author-email: 254Co <m@254carbon.com>
+License: Apache-2.0
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.23
+Requires-Dist: pydantic>=1.10
+Requires-Dist: numba>=0.56; extra == "cpu"
+Requires-Dist: cupy>=11; extra == "gpu"
+Requires-Dist: ray>=2.5; extra == "ray"
+Requires-Dist: pyspark>=3.4; extra == "spark"
+Requires-Dist: scipy>=1.9
+Provides-Extra: cpu
+Requires-Dist: numba>=0.56; extra == "cpu"
+Provides-Extra: gpu
+Requires-Dist: cupy>=11; extra == "gpu"
+Provides-Extra: ray
+Requires-Dist: ray>=2.5; extra == "ray"
+Provides-Extra: spark
+Requires-Dist: pyspark>=3.4; extra == "spark"

@@ -3,7 +3,7 @@
 import numpy as np
 from scipy.stats import norm
 
-from ..chen3 import (
+from chen3 import (
     ChenModel,
     RateParams,
     EquityParams,

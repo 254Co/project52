@@ -1,5 +1,22 @@
 # File: chen3/calibration/optim.py
-"""Calibration routines for the Chen model."""
+"""
+Model Calibration Optimization Module
+
+This module provides optimization routines for calibrating the three-factor Chen
+model to market data. It implements both local and global optimization methods
+to fit model parameters to observed market prices and rates.
+
+The module supports:
+1. Joint calibration of interest rate and volatility parameters
+2. Multiple optimization methods (global and local)
+3. Customizable loss functions for different market data
+4. Parameter bounds and constraints
+
+The calibration process minimizes the difference between:
+- Model-generated volatility surface and market quotes
+- Model-generated yield curve and market rates
+"""
+
 import numpy as np
 from scipy.optimize import minimize, differential_evolution
 from typing import Dict, Any
@@ -11,6 +28,7 @@ _OPT_KEYS = [
     "kappa_v", "theta_v", "sigma_v"    # variance (Heston) params
 ]
 
+
 def calibrate(
     params_guess: Dict[str, float],
     market_data: Dict[str, Any],
@@ -18,23 +36,84 @@ def calibrate(
     method: str = "global"
 ) -> Dict[str, float]:
     """
-    Fit CIR & Heston‐variance parameters to market quotes.
-
-    params_guess: initial dict for keys in _OPT_KEYS
-    market_data: {
-      "vols": np.ndarray,      # (n_tenors, n_strikes)
-      "tenors": np.ndarray,    # (n_tenors,)
-      "strikes": np.ndarray,   # (n_strikes,)
-      "curve": np.ndarray,     # (n_points,)
-      "maturities": np.ndarray # (n_points,)
-    }
-    model_funcs: {
-      "vol_fn":  f(params, tenors, strikes)->np.ndarray,
-      "rate_fn": f(params, maturities)->np.ndarray
-    }
-    method: "global" -> differential_evolution; otherwise L-BFGS-B
+    Calibrate the three-factor Chen model to market data.
+    
+    This function performs joint calibration of the model's interest rate and
+    volatility parameters to match observed market data. It supports both global
+    optimization (differential evolution) and local optimization (L-BFGS-B)
+    methods.
+    
+    The calibration process:
+    1. Combines volatility surface and yield curve fitting
+    2. Optimizes all parameters simultaneously
+    3. Respects parameter bounds and constraints
+    4. Returns the optimal parameter set
+    
+    Args:
+        params_guess (Dict[str, float]): Initial parameter values for:
+            - kappa: Mean reversion speed of rates
+            - theta: Long-term mean of rates
+            - sigma: Volatility of rates
+            - r0: Initial rate level
+            - kappa_v: Mean reversion speed of variance
+            - theta_v: Long-term mean of variance
+            - sigma_v: Volatility of variance
+        
+        market_data (Dict[str, Any]): Market data for calibration:
+            - vols: Volatility surface quotes (n_tenors × n_strikes)
+            - tenors: Option tenors
+            - strikes: Option strike prices
+            - curve: Yield curve points
+            - maturities: Yield curve maturities
+        
+        model_funcs (Dict[str, Any]): Model functions for:
+            - vol_fn: Function to compute model volatilities
+            - rate_fn: Function to compute model rates
+        
+        method (str): Optimization method:
+            - "global": Use differential evolution
+            - other: Use L-BFGS-B local optimization
+    
+    Returns:
+        Dict[str, float]: Optimized parameter values
+    
+    Example:
+        >>> params_guess = {
+        ...     "kappa": 0.1, "theta": 0.05, "sigma": 0.1, "r0": 0.03,
+        ...     "kappa_v": 2.0, "theta_v": 0.04, "sigma_v": 0.3
+        ... }
+        >>> market_data = {
+        ...     "vols": np.array([[0.2, 0.3], [0.25, 0.35]]),
+        ...     "tenors": np.array([0.25, 0.5]),
+        ...     "strikes": np.array([0.9, 1.1]),
+        ...     "curve": np.array([0.02, 0.03, 0.04]),
+        ...     "maturities": np.array([1, 2, 3])
+        ... }
+        >>> model_funcs = {
+        ...     "vol_fn": compute_vols,
+        ...     "rate_fn": compute_rates
+        ... }
+        >>> params_opt = calibrate(params_guess, market_data, model_funcs)
+    
+    Notes:
+        - All parameters are constrained to be positive
+        - Global optimization is more robust but slower
+        - Local optimization is faster but may find local minima
+        - Loss function combines volatility and rate fitting errors
     """
     def objective(x: np.ndarray) -> float:
+        """
+        Objective function for optimization.
+        
+        Combines volatility surface and yield curve fitting errors into a
+        single loss function to be minimized.
+        
+        Args:
+            x (np.ndarray): Flattened parameter vector
+        
+        Returns:
+            float: Combined loss value
+        """
         # rebuild param dict
         p = {k: float(x[i]) for i,k in enumerate(_OPT_KEYS)}
         L1 = vol_surface_loss(p,
