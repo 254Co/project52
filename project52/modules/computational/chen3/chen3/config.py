@@ -81,10 +81,15 @@ Example Usage:
     >>> model = ChenModel(params, settings=settings)
 """
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
+from pathlib import Path
+from typing import Dict
 
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
+
+from .utils.exceptions import ConfigurationError
+from .utils.logging import logger
 
 
 class Settings(BaseModel):
@@ -247,3 +252,123 @@ class Settings(BaseModel):
         validate_assignment = True
         arbitrary_types_allowed = True
         extra = "forbid"
+
+
+class SimulationConfig(BaseModel):
+    """Configuration for simulation settings."""
+
+    n_paths: int = Field(default=10000, gt=0, description="Number of simulation paths")
+    n_steps: int = Field(default=100, gt=0, description="Number of time steps")
+    dt: Optional[float] = Field(default=None, gt=0, description="Time step size")
+    seed: Optional[int] = Field(default=None, description="Random seed for reproducibility")
+    use_gpu: bool = Field(default=False, description="Whether to use GPU acceleration")
+    batch_size: int = Field(default=1000, gt=0, description="Batch size for GPU processing")
+
+    @field_validator("dt")
+    def validate_dt(cls, v, values):
+        if v is not None and v <= 0:
+            raise ConfigurationError("Time step size must be positive")
+        return v
+
+
+class NumericalConfig(BaseModel):
+    """Configuration for numerical settings."""
+
+    tolerance: float = Field(default=1e-6, gt=0, description="Numerical tolerance")
+    max_iterations: int = Field(default=1000, gt=0, description="Maximum iterations")
+    adaptive_step: bool = Field(default=True, description="Use adaptive time stepping")
+    min_step: float = Field(default=1e-4, gt=0, description="Minimum time step")
+    max_step: float = Field(default=0.1, gt=0, description="Maximum time step")
+
+    @field_validator("min_step", "max_step")
+    def validate_step_size(cls, v):
+        if v <= 0:
+            raise ConfigurationError("Step size must be positive")
+        return v
+
+    @field_validator("max_step")
+    def validate_max_step(cls, v, values):
+        if "min_step" in values.data and v < values.data["min_step"]:
+            raise ConfigurationError("Maximum step size must be greater than minimum step size")
+        return v
+
+
+class LoggingConfig(BaseModel):
+    """Configuration for logging settings."""
+
+    level: str = Field(default="INFO", description="Logging level")
+    log_file: Optional[str] = Field(default="chen3.log", description="Log file path")
+    log_dir: Optional[str] = Field(default=None, description="Log directory")
+    format: str = Field(
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        description="Log format string"
+    )
+
+    @field_validator("level")
+    def validate_level(cls, v):
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if v.upper() not in valid_levels:
+            raise ConfigurationError(f"Invalid logging level: {v}")
+        return v.upper()
+
+
+class ChenConfig(BaseModel):
+    """Main configuration container for the Chen3 package."""
+
+    simulation: SimulationConfig = Field(default_factory=SimulationConfig)
+    numerical: NumericalConfig = Field(default_factory=NumericalConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict) -> "ChenConfig":
+        """Create configuration from dictionary."""
+        try:
+            return cls(**config_dict)
+        except Exception as e:
+            raise ConfigurationError(f"Failed to create configuration: {str(e)}")
+
+    @classmethod
+    def from_file(cls, config_file: Union[str, Path]) -> "ChenConfig":
+        """Load configuration from file."""
+        try:
+            import yaml
+            with open(config_file, "r") as f:
+                config_dict = yaml.safe_load(f)
+            return cls.from_dict(config_dict)
+        except Exception as e:
+            raise ConfigurationError(f"Failed to load configuration from file: {str(e)}")
+
+    def save_to_file(self, config_file: Union[str, Path]) -> None:
+        """Save configuration to file."""
+        try:
+            import yaml
+            with open(config_file, "w") as f:
+                yaml.dump(self.model_dump(), f, default_flow_style=False)
+        except Exception as e:
+            raise ConfigurationError(f"Failed to save configuration to file: {str(e)}")
+
+    def update(self, config_dict: Dict) -> None:
+        """Update configuration with new values."""
+        try:
+            for key, value in config_dict.items():
+                if hasattr(self, key):
+                    if isinstance(value, dict):
+                        getattr(self, key).update(value)
+                    else:
+                        setattr(self, key, value)
+        except Exception as e:
+            raise ConfigurationError(f"Failed to update configuration: {str(e)}")
+
+
+# Create default configuration
+default_config = ChenConfig()
+
+def get_config() -> ChenConfig:
+    """Get the current configuration."""
+    return default_config
+
+def set_config(config: ChenConfig) -> None:
+    """Set the current configuration."""
+    global default_config
+    default_config = config
+    logger.info("Configuration updated")

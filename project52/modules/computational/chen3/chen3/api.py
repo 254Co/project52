@@ -16,128 +16,95 @@ from .correlation import (
     StochasticCorrelation,
     TimeDependentCorrelation,
 )
-from .datatypes import EquityParams, ModelParams, RateParams
+from .datatypes import EquityParams, ModelParams, RateParams, CorrelationParams
 from .model import ChenModel
-from .utils.exceptions import ChenError
+from .utils.exceptions import (
+    ChenError,
+    ValidationError,
+    OptionError,
+    CalibrationError,
+    RiskAnalysisError,
+    InputError,
+)
 from .utils.logging import logger
 
 
 def create_model(
     rate_params: Optional[Dict[str, float]] = None,
     equity_params: Optional[Dict[str, float]] = None,
-    correlation: Optional[Union[np.ndarray, Dict]] = None,
+    correlation_params: Optional[Dict[str, float]] = None,
 ) -> ChenModel:
     """
-    Create a Chen model with default or specified parameters.
+    Create a Chen model instance with default or custom parameters.
 
     Args:
-        rate_params: Dictionary of interest rate parameters
-            - kappa: Mean reversion speed (default: 0.1)
-            - theta: Long-term mean (default: 0.05)
-            - sigma: Volatility (default: 0.1)
-            - r0: Initial rate (default: 0.03)
-        equity_params: Dictionary of equity parameters
-            - mu: Drift (default: 0.05)
-            - q: Dividend yield (default: 0.02)
-            - S0: Initial stock price (default: 100.0)
-            - v0: Initial variance (default: 0.04)
-            - kappa_v: Variance mean reversion (default: 2.0)
-            - theta_v: Long-term variance (default: 0.04)
-            - sigma_v: Volatility of variance (default: 0.3)
-        correlation: Correlation specification
-            - If np.ndarray: Constant correlation matrix
-            - If Dict: Configuration for correlation type
-                - type: 'constant', 'time_dependent', 'state_dependent',
-                       'regime_switching', 'stochastic', or 'copula'
-                - params: Parameters for the chosen correlation type
+        rate_params: Optional dictionary of rate parameters
+        equity_params: Optional dictionary of equity parameters
+        correlation_params: Optional dictionary of correlation parameters
 
     Returns:
         ChenModel: Initialized model instance
 
     Example:
-        >>> # Create model with default parameters
         >>> model = create_model()
-
-        >>> # Create model with custom parameters
+        >>> # Or with custom parameters:
         >>> model = create_model(
-        ...     rate_params={'kappa': 0.2, 'theta': 0.04},
-        ...     equity_params={'S0': 150.0, 'v0': 0.05},
-        ...     correlation={
-        ...         'type': 'time_dependent',
-        ...         'params': {
-        ...             'time_points': [0, 1, 2],
-        ...             'correlation_matrices': [
-        ...                 [[1.0, 0.5, 0.3],
-        ...                  [0.5, 1.0, 0.2],
-        ...                  [0.3, 0.2, 1.0]],
-        ...                 [[1.0, 0.6, 0.4],
-        ...                  [0.6, 1.0, 0.3],
-        ...                  [0.4, 0.3, 1.0]],
-        ...                 [[1.0, 0.7, 0.5],
-        ...                  [0.7, 1.0, 0.4],
-        ...                  [0.5, 0.4, 1.0]]
-        ...             ]
-        ...         }
-        ...     }
+        ...     rate_params={'kappa': 0.2, 'theta': 0.05, 'sigma': 0.08, 'r0': 0.03},
+        ...     equity_params={'mu': 0.05, 'q': 0.02, 'S0': 100.0, 'v0': 0.04,
+        ...                    'kappa_v': 2.0, 'theta_v': 0.04, 'sigma_v': 0.2}
         ... )
     """
-    # Set default parameters
-    default_rate_params = {"kappa": 0.1, "theta": 0.05, "sigma": 0.1, "r0": 0.03}
-    default_equity_params = {
-        "mu": 0.05,
-        "q": 0.02,
-        "S0": 100.0,
-        "v0": 0.04,
-        "kappa_v": 2.0,
-        "theta_v": 0.04,
-        "sigma_v": 0.3,
+    # Default parameters that satisfy Feller condition and ensure stability
+    default_rate_params = {
+        'kappa': 0.2,    # Mean reversion speed
+        'theta': 0.05,   # Long-term mean
+        'sigma': 0.08,   # Volatility (2 * 0.2 * 0.05 = 0.02 > 0.08^2 = 0.0064)
+        'r0': 0.03       # Initial rate
     }
-    default_correlation = np.array([[1.0, 0.5, 0.3], [0.5, 1.0, 0.2], [0.3, 0.2, 1.0]])
 
-    # Update with provided parameters
-    if rate_params:
-        default_rate_params.update(rate_params)
-    if equity_params:
-        default_equity_params.update(equity_params)
+    default_equity_params = {
+        'mu': 0.05,      # Drift
+        'q': 0.02,       # Dividend yield
+        'S0': 100.0,     # Initial stock price
+        'v0': 0.04,      # Initial variance
+        'kappa_v': 2.0,  # Variance mean reversion speed
+        'theta_v': 0.04, # Variance long-term mean
+        'sigma_v': 0.2   # Variance volatility (reduced for stability)
+    }
 
-    # Create parameter objects
-    rate = RateParams(**default_rate_params)
-    equity = EquityParams(**default_equity_params)
+    default_correlation_params = {
+        'rho_rs': 0.1,   # Rate-stock correlation
+        'rho_rv': -0.1,  # Rate-variance correlation
+        'rho_sv': -0.5   # Stock-variance correlation
+    }
 
-    # Handle correlation
-    if correlation is None:
-        corr = default_correlation
-    elif isinstance(correlation, np.ndarray):
-        corr = correlation
-    elif isinstance(correlation, dict):
-        corr_type = correlation.get("type", "constant")
-        corr_params = correlation.get("params", {})
+    # Use provided parameters or defaults
+    rate_params = rate_params or default_rate_params
+    equity_params = equity_params or default_equity_params
+    correlation_params = correlation_params or default_correlation_params
 
-        if corr_type == "constant":
-            corr = np.array(corr_params.get("matrix", default_correlation))
-        elif corr_type == "time_dependent":
-            corr = TimeDependentCorrelation(
-                time_points=np.array(corr_params["time_points"]),
-                correlation_matrices=[
-                    np.array(m) for m in corr_params["correlation_matrices"]
-                ],
-            )
-        elif corr_type == "state_dependent":
-            corr = StateDependentCorrelation(**corr_params)
-        elif corr_type == "regime_switching":
-            corr = RegimeSwitchingCorrelation(**corr_params)
-        elif corr_type == "stochastic":
-            corr = StochasticCorrelation(**corr_params)
-        elif corr_type == "copula":
-            corr = CopulaCorrelation(**corr_params)
-        else:
-            raise ChenError(f"Unsupported correlation type: {corr_type}")
-    else:
-        raise ChenError("Invalid correlation specification")
+    try:
+        # Create model parameters
+        corr = np.array([
+            [1.0, correlation_params['rho_rs'], correlation_params['rho_rv']],
+            [correlation_params['rho_rs'], 1.0, correlation_params['rho_sv']],
+            [correlation_params['rho_rv'], correlation_params['rho_sv'], 1.0]
+        ])
+        params = ModelParams(
+            rate=RateParams(**rate_params),
+            equity=EquityParams(**equity_params),
+            correlation=corr
+        )
 
-    # Create and return model
-    model_params = ModelParams(rate=rate, equity=equity, correlation=corr)
-    return ChenModel(model_params)
+        # Initialize and return model
+        return ChenModel(params)
+
+    except ValidationError as e:
+        logger.error(f"Failed to create model: {str(e)}")
+        raise InputError(f"Invalid model parameters: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to create model: {str(e)}")
+        raise ChenError(f"Failed to create model: {str(e)}")
 
 
 def price_option(
@@ -175,6 +142,11 @@ def price_option(
             - theta: Option theta
             - rho: Option rho
 
+    Raises:
+        OptionError: If option parameters are invalid
+        ValidationError: If parameter validation fails
+        ChenError: For other errors
+
     Example:
         >>> model = create_model()
         >>> result = price_option(
@@ -186,36 +158,91 @@ def price_option(
         ... )
         >>> print(f"Option price: {result['price']:.4f} ± {result['std_error']:.4f}")
     """
-    # Validate inputs
-    if option_type not in ["call", "put"]:
-        raise ChenError(f"Unsupported option type: {option_type}")
+    try:
+        # Validate inputs
+        if not isinstance(model, ChenModel):
+            raise InputError("model must be a ChenModel instance")
+        
+        supported_types = ["call", "put", "up_and_out_call", "down_and_out_put"]
+        if option_type not in supported_types:
+            raise OptionError(f"Unsupported option type: {option_type}")
+        
+        if strike <= 0:
+            raise OptionError("Strike price must be positive")
+        
+        if maturity <= 0:
+            raise OptionError("Maturity must be positive")
+        
+        if n_paths <= 0:
+            raise OptionError("Number of paths must be positive")
+        
+        if n_steps <= 0:
+            raise OptionError("Number of steps must be positive")
+        
+        # Validate additional parameters
+        if "barrier" in kwargs and kwargs["barrier"] <= 0:
+            raise OptionError("Barrier level must be positive")
+        
+        if "rebate" in kwargs and kwargs["rebate"] < 0:
+            raise OptionError("Rebate must be non-negative")
+        
+        if "barrier_type" in kwargs:
+            valid_types = ["up", "down", "up_and_out", "down_and_out"]
+            if kwargs["barrier_type"] not in valid_types:
+                raise OptionError(f"Invalid barrier type: {kwargs['barrier_type']}")
 
-    # Set up time grid
-    dt = maturity / n_steps
+        # Set up time grid
+        dt = maturity / n_steps
 
-    # Define payoff function
-    def payoff(r_paths, S_paths, v_paths):
+        # Define payoff function
         if option_type == "call":
-            return np.maximum(S_paths[:, -1] - strike, 0)
-        else:  # put
-            return np.maximum(strike - S_paths[:, -1], 0)
+            def payoff(r_paths, S_paths, v_paths):
+                return np.maximum(S_paths[:, -1] - strike, 0)
+        elif option_type == "put":
+            def payoff(r_paths, S_paths, v_paths):
+                return np.maximum(strike - S_paths[:, -1], 0)
+        elif option_type == "up_and_out_call":
+            barrier = kwargs.get("barrier")
+            if barrier is None:
+                raise OptionError("Barrier level must be specified for barrier options")
+            def payoff(r_paths, S_paths, v_paths):
+                knocked_out = np.any(S_paths >= barrier, axis=1)
+                return np.where(knocked_out, 0.0, np.maximum(S_paths[:, -1] - strike, 0))
+        elif option_type == "down_and_out_put":
+            barrier = kwargs.get("barrier")
+            if barrier is None:
+                raise OptionError("Barrier level must be specified for barrier options")
+            def payoff(r_paths, S_paths, v_paths):
+                knocked_out = np.any(S_paths <= barrier, axis=1)
+                return np.where(knocked_out, 0.0, np.maximum(strike - S_paths[:, -1], 0))
 
-    # Price the option
-    price = model.price_instrument(
-        payoff_function=payoff, n_paths=n_paths, n_steps=n_steps, dt=dt
-    )
+        # Price the option
+        price = model.price_instrument(
+            payoff_function=payoff,
+            n_paths=n_paths,
+            n_steps=n_steps,
+            dt=dt,
+        )
 
-    # TODO: Implement Greeks calculation
-    # For now, return placeholder values
-    return {
-        "price": price,
-        "std_error": 0.0,  # TODO: Implement
-        "delta": 0.0,  # TODO: Implement
-        "gamma": 0.0,  # TODO: Implement
-        "vega": 0.0,  # TODO: Implement
-        "theta": 0.0,  # TODO: Implement
-        "rho": 0.0,  # TODO: Implement
-    }
+        # Calculate Greeks
+        # TODO: Implement Greek calculations
+
+        return {
+            "price": price,
+            "std_error": 0.0,  # TODO: Calculate standard error
+            "delta": 0.0,  # TODO: Calculate delta
+            "gamma": 0.0,  # TODO: Calculate gamma
+            "vega": 0.0,  # TODO: Calculate vega
+            "theta": 0.0,  # TODO: Calculate theta
+            "rho": 0.0,  # TODO: Calculate rho
+        }
+
+    except (OptionError, ValidationError) as e:
+        logger.error(f"Option pricing failed: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Failed to price option: {str(e)}")
+        raise ChenError(f"Failed to price option: {str(e)}")
 
 
 def calibrate_model(

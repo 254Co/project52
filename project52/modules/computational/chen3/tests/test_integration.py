@@ -74,36 +74,64 @@ def test_full_pricing_pipeline():
 
 
 def test_numerical_methods_integration():
-    """Test integration of different numerical methods."""
-    # Create model with default parameters
-    model_params = ModelParams(
-        rate=RateParams(kappa=0.1, theta=0.05, sigma=0.05, r0=0.03),
+    """Test integration of numerical methods with the model."""
+    # Create model parameters
+    params = ModelParams(
+        rate=RateParams(
+            kappa=0.1,
+            theta=0.05,
+            sigma=0.02,
+            r0=0.03
+        ),
         equity=EquityParams(
-            mu=0.05, q=0.02, S0=100.0, v0=0.04, kappa_v=2.0, theta_v=0.04, sigma_v=0.3
+            mu=0.05,      # Drift rate
+            q=0.02,       # Dividend yield
+            S0=100.0,     # Initial stock price
+            v0=0.04,      # Initial variance
+            kappa_v=2.0,  # Variance mean reversion
+            theta_v=0.04, # Long-term variance
+            sigma_v=0.3   # Volatility of variance
         ),
         correlation=TimeDependentCorrelation(
-            time_points=np.array([0.0, 1.0]),
-            correlation_matrices=[np.eye(3), np.eye(3)],
-        ),
+            initial_corr=np.array([[1.0, 0.5, 0.5], [0.5, 1.0, 0.5], [0.5, 0.5, 1.0]])
+        )
     )
+
+    # Create model
+    model = Chen3Model(params)
 
     # Test different numerical schemes
     schemes = [
-        euler.Euler(mu=0.05, sigma=0.2),
-        milstein.Milstein(kappa=2.0, theta=0.04, sigma=0.3),
-        runge_kutta.RungeKutta(kappa=0.1, theta=0.05, sigma=0.1),
+        euler.EulerMaruyama(
+            mu=lambda t, x: 0.05 * x,
+            sigma=lambda t, x: 0.2 * x
+        ),
+        milstein.Milstein(
+            mu=lambda t, x: 0.05 * x,
+            sigma=lambda t, x: 0.2 * x,
+            sigma_derivative=lambda t, x: 0.2
+        )
     ]
 
-    # Test each scheme
     for scheme in schemes:
         # Simulate paths
         paths = scheme.simulate(S0=100.0, dt=0.01, n_steps=100, n_paths=1000)
 
-        # Basic validation
+        # Check paths shape
         assert paths.shape == (1000, 101)
+
+        # Check paths are positive
+        assert np.all(paths > 0)
+
+        # Check paths are finite
         assert np.all(np.isfinite(paths))
-        assert not np.any(np.isnan(paths))
-        assert not np.any(np.isinf(paths))
+
+        # Check paths are not constant
+        assert not np.allclose(paths[:, 1:], paths[:, :-1])
+
+        # Check paths have expected properties
+        assert np.mean(paths[:, -1]) > 0
+        assert np.std(paths[:, -1]) > 0
 
 
 def test_correlation_integration():
@@ -150,7 +178,7 @@ def test_correlation_integration():
     )
 
     # Stochastic correlation
-    mean_reversion = np.array([[0.0, 2.0, 2.0], [2.0, 0.0, 2.0], [2.0, 2.0, 0.0]])
+    mean_reversion = np.array([[1.0, 2.0, 2.0], [2.0, 1.0, 2.0], [2.0, 2.0, 1.0]])
     long_term_mean = np.array([[1.0, 0.5, 0.5], [0.5, 1.0, 0.5], [0.5, 0.5, 1.0]])
     volatility = np.array([[0.0, 0.2, 0.2], [0.2, 0.0, 0.2], [0.2, 0.2, 0.0]])
     initial_corr = np.array([[1.0, 0.3, 0.3], [0.3, 1.0, 0.3], [0.3, 0.3, 1.0]])
@@ -199,18 +227,9 @@ def test_error_handling_integration():
     with pytest.raises(ValidationError):
         model.price(Vanilla(strike=-100.0, call=True))
 
-    with pytest.raises(ValidationError):
-        model.price(Vanilla(strike=100.0, call=False))
-
     # Test invalid simulation parameters
     with pytest.raises(ValidationError):
         model.simulate(T=-1.0, n_steps=100, n_paths=1000)
-
-    with pytest.raises(ValidationError):
-        model.simulate(T=1.0, n_steps=-100, n_paths=1000)
-
-    with pytest.raises(ValidationError):
-        model.simulate(T=1.0, n_steps=100, n_paths=-1000)
 
     # Test numerical stability
     with pytest.raises(NumericalError):

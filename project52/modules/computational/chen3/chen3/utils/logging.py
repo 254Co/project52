@@ -15,110 +15,105 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+# Create logger
+logger = logging.getLogger("chen3")
 
-class ChenLogger:
+# Set default level
+logger.setLevel(logging.INFO)
+
+# Create handlers
+console_handler = logging.StreamHandler(sys.stdout)
+file_handler = logging.FileHandler("chen3.log")
+
+# Create formatters
+console_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+file_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+)
+
+# Set formatters
+console_handler.setFormatter(console_formatter)
+file_handler.setFormatter(file_formatter)
+
+# Add handlers
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+
+def configure_logging(
+    level: int = logging.INFO,
+    log_file: Optional[str] = None,
+    log_dir: Optional[str] = None,
+) -> None:
     """
-    Custom logger for the Chen3 package with different log levels and formatting.
+    Configure logging for the Chen3 package.
 
-    This class provides a wrapper around Python's logging module with pre-configured
-    formatters and handlers for both console and file output. It supports different
-    log levels and can be configured to write logs to both console and file.
+    Args:
+        level: Logging level (default: logging.INFO)
+        log_file: Path to log file (default: chen3.log)
+        log_dir: Directory for log files (default: current directory)
 
-    Attributes:
-        logger (logging.Logger): The underlying Python logger instance
+    Example:
+        >>> from chen3.utils.logging import configure_logging
+        >>> import logging
+        >>>
+        >>> # Configure logging with default settings
+        >>> configure_logging()
+        >>>
+        >>> # Configure logging with custom settings
+        >>> configure_logging(
+        ...     level=logging.DEBUG,
+        ...     log_file="custom.log",
+        ...     log_dir="/path/to/logs"
+        ... )
     """
+    # Set logging level
+    logger.setLevel(level)
 
-    def __init__(
-        self,
-        name: str = "chen3",
-        level: int = logging.INFO,
-        log_file: Optional[Path] = None,
-    ):
-        """
-        Initialize the ChenLogger with specified configuration.
+    # Remove existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
 
-        Args:
-            name (str): Name of the logger, defaults to "chen3"
-            level (int): Logging level, defaults to logging.INFO
-            log_file (Optional[Path]): Path to log file if file logging is desired
-        """
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
+    # Create console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
 
-        # Create formatters with different levels of detail
-        console_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
-        )
+    # Create file handler if log file is specified
+    if log_file:
+        if log_dir:
+            log_path = Path(log_dir) / log_file
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            log_path = Path(log_file)
 
-        # Console handler for immediate feedback
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(console_formatter)
-        self.logger.addHandler(console_handler)
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
 
-        # File handler for detailed logging if specified
-        if log_file:
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
-
-    def debug(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
-        """
-        Log a debug message.
-
-        Args:
-            msg (str): The message to log
-            *args: Variable length argument list
-            **kwargs: Arbitrary keyword arguments
-        """
-        self.logger.debug(msg, *args, **kwargs)
-
-    def info(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
-        """
-        Log an info message.
-
-        Args:
-            msg (str): The message to log
-            *args: Variable length argument list
-            **kwargs: Arbitrary keyword arguments
-        """
-        self.logger.info(msg, *args, **kwargs)
-
-    def warning(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
-        """
-        Log a warning message.
-
-        Args:
-            msg (str): The message to log
-            *args: Variable length argument list
-            **kwargs: Arbitrary keyword arguments
-        """
-        self.logger.warning(msg, *args, **kwargs)
-
-    def error(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
-        """
-        Log an error message.
-
-        Args:
-            msg (str): The message to log
-            *args: Variable length argument list
-            **kwargs: Arbitrary keyword arguments
-        """
-        self.logger.error(msg, *args, **kwargs)
-
-    def critical(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
-        """
-        Log a critical message.
-
-        Args:
-            msg (str): The message to log
-            *args: Variable length argument list
-            **kwargs: Arbitrary keyword arguments
-        """
-        self.logger.critical(msg, *args, **kwargs)
+    # Log configuration
+    logger.info(f"Logging configured with level {logging.getLevelName(level)}")
+    if log_file:
+        logger.info(f"Log file: {log_path}")
 
 
-# Create default logger instance for use throughout the package
-logger = ChenLogger()
+def get_logger(name: str) -> logging.Logger:
+    """
+    Get a logger for a specific module.
+
+    Args:
+        name: Module name
+
+    Returns:
+        logging.Logger: Logger instance
+
+    Example:
+        >>> from chen3.utils.logging import get_logger
+        >>>
+        >>> # Get logger for a module
+        >>> logger = get_logger("chen3.model")
+        >>> logger.info("Model initialized")
+    """
+    return logging.getLogger(f"chen3.{name}")

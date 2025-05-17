@@ -116,28 +116,7 @@ def check_numerical_stability(
     """
     Check numerical stability of an array of values.
 
-    Performs comprehensive numerical stability checks:
-    1. NaN detection
-    2. Infinite value detection
-    3. Minimum value threshold check
-    4. Maximum value threshold check
-    5. Growth rate check (if max_growth_rate is provided)
-    6. Volatility check (if max_volatility is provided)
-
-    Args:
-        values (np.ndarray): Array of values to check
-        min_value (float): Minimum allowed value (default: 1e-10)
-        max_value (float): Maximum allowed value (default: 1e10)
-        name (str): Name of the values for logging purposes
-        max_growth_rate (Optional[float]): Maximum allowed growth rate
-        max_volatility (Optional[float]): Maximum allowed volatility
-
-    Returns:
-        bool: True if all values are stable, False otherwise
-
-    Note:
-        If any check fails, an appropriate error or warning is logged
-        with specific details about the violation.
+    For payoffs, allow zero values (valid for options). Only flag negative, NaN, or infinite values as unstable.
     """
     if np.any(np.isnan(values)):
         logger.error(f"NaN values detected in {name}")
@@ -147,12 +126,19 @@ def check_numerical_stability(
         logger.error(f"Infinite values detected in {name}")
         return False
 
-    if np.any(values < min_value):
-        logger.warning(
-            f"Values below minimum threshold detected in {name}: "
-            f"min = {np.min(values):.4e} < {min_value:.4e}"
-        )
-        return False
+    if name == "payoffs":
+        if np.any(values < 0):
+            logger.warning(
+                f"Negative values detected in {name}: min = {np.min(values):.4e}"
+            )
+            return False
+    else:
+        if np.any(values < min_value):
+            logger.warning(
+                f"Values below minimum threshold detected in {name}: "
+                f"min = {np.min(values):.4e} < {min_value:.4e}"
+            )
+            return False
 
     if np.any(values > max_value):
         logger.warning(

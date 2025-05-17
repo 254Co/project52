@@ -248,7 +248,9 @@ class EulerMaruyama:
         self.mu = mu
         self.sigma = sigma
 
-        if sigma(0) < 0:
+        # Test the functions with some initial values
+        test_state = 1.0
+        if sigma(0.0, test_state) < 0:
             raise ValueError("Diffusion coefficient must be non-negative")
 
     def simulate(self, S0: float, dt: float, n_steps: int, n_paths: int) -> np.ndarray:

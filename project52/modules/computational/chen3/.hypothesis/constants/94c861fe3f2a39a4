@@ -1,0 +1,4 @@
+# file: /Users/m/Desktop/project52/project52/modules/computational/chen3/chen3/config.py
+# hypothesis_version: 6.131.18
+
+[1e-06, 0.0001, 0.01, 0.1, 100, 1000, 10000, 'CRITICAL', 'ChenConfig', 'DEBUG', 'ERROR', 'INFO', 'Log directory', 'Log file path', 'Log format string', 'Logging level', 'Maximum iterations', 'Maximum time step', 'Minimum time step', 'Number of time steps', 'Numerical tolerance', 'Time step size', 'WARNING', 'backend', 'chen3.log', 'cuda', 'dt', 'forbid', 'level', 'max_step', 'min_step', 'n_jobs', 'numpy', 'r', 'use_parallel', 'w']

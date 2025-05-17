@@ -1,4 +1,4 @@
-from .expirytime import expiry252time, expiry365time
+from .calendar_utils import expiry252time, expiry365time
 
 
 __version__ = "1.0.0"

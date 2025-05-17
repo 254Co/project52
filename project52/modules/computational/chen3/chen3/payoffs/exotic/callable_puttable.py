@@ -44,3 +44,19 @@ class CallablePuttable(Payoff):
         S_T = S[:, -1]
         payoff = np.where(payoff == -np.inf, S_T, payoff)
         return self.notional * payoff
+
+    def payoff(self, r_paths: np.ndarray, S_paths: np.ndarray, v_paths: np.ndarray) -> np.ndarray:
+        """
+        Compute the payoff for the callable/puttable option.
+        
+        Args:
+            r_paths: Interest rate paths
+            S_paths: Stock price paths
+            v_paths: Variance paths
+            
+        Returns:
+            np.ndarray: Array of payoffs for each path
+        """
+        # Stack the paths as expected by __call__
+        paths = np.stack([r_paths, S_paths, v_paths], axis=2)
+        return self(paths)

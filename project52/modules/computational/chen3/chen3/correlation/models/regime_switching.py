@@ -39,6 +39,7 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
         n_regimes (int): Number of regimes
         n_factors (int): Number of factors
         name (str): Name of the correlation structure
+        initial_regime (int): Initial regime index
     """
 
     def __init__(
@@ -47,6 +48,7 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
         transition_rates: np.ndarray,
         n_factors: int = 3,
         name: str = "RegimeSwitchingCorrelation",
+        initial_regime: int = 0,
     ):
         """
         Initialize regime-switching correlation.
@@ -56,6 +58,7 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
             transition_rates: Transition rate matrix between regimes
             n_factors: Number of factors
             name: Name of the correlation structure
+            initial_regime: Initial regime index (default: 0)
 
         Raises:
             CorrelationValidationError: If initialization fails
@@ -63,6 +66,7 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
         self._correlation_matrices = correlation_matrices
         self.transition_rates = transition_rates
         self.n_regimes = len(correlation_matrices)
+        self.initial_regime = initial_regime
         super().__init__(n_factors=n_factors, name=name)
         self._validate_initialization()
         logger.debug(f"Initialized {self.name} with {n_factors} factors")
@@ -103,6 +107,12 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
                 "Transition rate matrix rows must sum to zero"
             )
 
+        # Validate initial regime
+        if not 0 <= self.initial_regime < self.n_regimes:
+            raise CorrelationValidationError(
+                f"Initial regime must be between 0 and {self.n_regimes - 1}"
+            )
+
     def get_correlation_matrix(
         self, t: float = 0.0, state: Optional[Dict[str, float]] = None
     ) -> np.ndarray:
@@ -122,7 +132,7 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
         try:
             # Compute regime probabilities at time t
             P = expm(self.transition_rates * t)
-            p = P[0]  # Initial regime is 0
+            p = P[self.initial_regime]  # Use initial_regime instead of hardcoded 0
 
             # Compute weighted average of correlation matrices
             corr_matrix = np.zeros((self.n_factors, self.n_factors))
@@ -135,7 +145,7 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
 
     def __str__(self) -> str:
         """String representation of the correlation structure."""
-        return f"{self.name}(n_regimes={self.n_regimes}, n_factors={self.n_factors})"
+        return f"{self.name}(n_regimes={self.n_regimes}, n_factors={self.n_factors}, initial_regime={self.initial_regime})"
 
     def __repr__(self) -> str:
         """Detailed string representation of the correlation structure."""
@@ -144,7 +154,8 @@ class RegimeSwitchingCorrelation(BaseCorrelation):
             f"correlation_matrices={self._correlation_matrices}, "
             f"transition_rates={self.transition_rates}, "
             f"n_factors={self.n_factors}, "
-            f"name='{self.name}')"
+            f"name='{self.name}', "
+            f"initial_regime={self.initial_regime})"
         )
 
 
@@ -153,6 +164,7 @@ def create_two_regime_correlation(
     high_corr: float = 0.8,
     transition_rate: float = 0.1,
     n_factors: int = 3,
+    initial_regime: int = 0,
 ) -> RegimeSwitchingCorrelation:
     """
     Create a two-regime correlation structure.
@@ -165,6 +177,7 @@ def create_two_regime_correlation(
         high_corr: High correlation value
         transition_rate: Rate of regime transitions
         n_factors: Number of factors
+        initial_regime: Initial regime index (default: 0)
 
     Returns:
         RegimeSwitchingCorrelation instance
@@ -185,4 +198,5 @@ def create_two_regime_correlation(
         correlation_matrices=[low_corr_matrix, high_corr_matrix],
         transition_rates=transition_rates,
         n_factors=n_factors,
+        initial_regime=initial_regime,
     )

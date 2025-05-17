@@ -146,6 +146,7 @@ from .utils.exceptions import (
     NumericalError,
     SimulationError,
     ValidationError,
+    PricingError,
 )
 from .utils.logging import logger
 from .utils.validation import (
@@ -602,6 +603,10 @@ class ChenModel:
 
         except Exception as e:
             raise NumericalError(f"Path simulation failed: {str(e)}")
+
+    @property
+    def num_factors(self):
+        return 3
 
 
 Chen3Model = ChenModel

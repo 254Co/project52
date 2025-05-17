@@ -63,15 +63,17 @@ def cutoff_utc(date_in: "date | str") -> datetime:
     return cutoff_et.astimezone(ZoneInfo("UTC"))
 
 
-def expiry252time(symbol, ex_date):
+def expiry252time(ex_date):
     
+    symbol = ""
     ex_datetime = cutoff_utc(ex_date)
     tv252 = time_to_expiry(symbol, ex_datetime, day_count = "ACT/252")
     
     return tv252
 
-def expiry365time(symbol, ex_date):
+def expiry365time(ex_date):
     
+    symbol = ""
     ex_datetime = cutoff_utc(ex_date)
     tv365 = time_to_expiry(symbol, ex_datetime, day_count = "ACT/365")
     
@@ -80,14 +82,13 @@ def expiry365time(symbol, ex_date):
 
 # Example
 if __name__ == "__main__":    
-    symbol = "CRWV"
     ex_date = "2025-12-31"
-    x252 = expiry252time(symbol, ex_date)
-    x365 = expiry365time(symbol, ex_date)
+    x252 = expiry252time(ex_date)
+    x365 = expiry365time(ex_date)
     yr = datetime.today().year
 
     print("")
-    print(f"Results for {symbol}:")
+    print(f"Results for {ex_date}:")
     print("")
     print(f"    Time remain for 252 day year: {x252}")
     print(f"    Time remain for 365 day year: {x365}")

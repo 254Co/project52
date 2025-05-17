@@ -33,3 +33,19 @@ class Barrier(Payoff):
             return raw * hit
         else:
             return raw * (~hit)
+
+    def payoff(self, r_paths: np.ndarray, S_paths: np.ndarray, v_paths: np.ndarray) -> np.ndarray:
+        """
+        Compute the payoff for the barrier option.
+        
+        Args:
+            r_paths: Interest rate paths
+            S_paths: Stock price paths
+            v_paths: Variance paths
+            
+        Returns:
+            np.ndarray: Array of payoffs for each path
+        """
+        # Stack the paths as expected by __call__
+        paths = np.stack([S_paths, r_paths, v_paths], axis=2)
+        return self(paths)
