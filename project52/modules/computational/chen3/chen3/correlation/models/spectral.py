@@ -1,12 +1,45 @@
 """
-Spectral Correlation Implementation
+Spectral Correlation Implementation for the Chen3 Model
 
 This module implements a spectral correlation structure for the Chen3 model,
 where correlations are defined through spectral decomposition (eigenvalues and eigenvectors).
 This allows for modeling correlations based on principal components or eigenmodes.
+
+The implementation uses spectral analysis to model correlations between factors:
+- Eigenvalue decomposition captures the principal modes of correlation
+- Time-dependent and state-dependent eigenvalues are supported
+- Orthonormal eigenvectors ensure valid correlation matrices
+- Different eigenvalue patterns (constant, decay, oscillate) can be used
+
+The correlation structure is particularly useful for modeling:
+- Principal component-based correlations
+- Time-varying correlation patterns
+- Market regime changes
+- Factor-based correlation structures
+
+Mathematical Formulation:
+---------------------
+The correlation matrix is constructed through spectral decomposition:
+
+ρ = QΛQ^T
+
+where:
+- Q: Matrix of orthonormal eigenvectors
+- Λ: Diagonal matrix of eigenvalues
+- Q^T: Transpose of Q
+
+The eigenvalues can be time-dependent or state-dependent:
+λ_i(t) = f_i(t, state)
+
+Properties:
+---------
+1. Positive Definiteness: Ensured by non-negative eigenvalues
+2. Symmetry: Guaranteed by the spectral decomposition
+3. Unit Diagonal: Maintained through normalization
+4. Time Evolution: Controlled by eigenvalue functions
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Callable
 import numpy as np
 from ..core.base import BaseCorrelation
 from ..utils.exceptions import CorrelationError, CorrelationValidationError
@@ -14,7 +47,7 @@ from ..utils.logging_config import logger
 
 class SpectralCorrelation(BaseCorrelation):
     """
-    Spectral correlation structure.
+    Spectral-based correlation structure for the Chen3 model.
     
     This class implements correlations through spectral decomposition,
     where the correlation matrix is constructed from eigenvalues and eigenvectors.
@@ -26,41 +59,65 @@ class SpectralCorrelation(BaseCorrelation):
     ρ = QΛQ^T
     
     where:
-    - Q: Matrix of eigenvectors
+    - Q: Matrix of eigenvectors (orthonormal)
     - Λ: Diagonal matrix of eigenvalues
     - Q^T: Transpose of Q
     
     The eigenvalues can be time-dependent or state-dependent:
     λ_i(t) = f_i(t, state)
     
+    Properties:
+    ---------
+    1. Positive Definiteness: Ensured by non-negative eigenvalues
+    2. Symmetry: Guaranteed by the spectral decomposition
+    3. Unit Diagonal: Maintained through normalization
+    4. Time Evolution: Controlled by eigenvalue functions
+    
     Attributes:
-        eigenvalues (List[float]): List of eigenvalues
-        eigenvectors (np.ndarray): Matrix of eigenvectors
-        eigenvalue_functions (List[callable]): List of eigenvalue functions
-        n_factors (int): Number of factors
-        name (str): Name of the correlation structure
+        eigenvalues (List[float]): List of base eigenvalues
+        eigenvectors (np.ndarray): Matrix of orthonormal eigenvectors
+        eigenvalue_functions (List[Callable]): List of functions for computing
+            time/state-dependent eigenvalues
+        n_factors (int): Number of factors in the correlation structure
+        name (str): Name identifier for the correlation structure
+    
+    Note:
+        The correlation structure ensures positive definiteness through
+        the orthonormal eigenvector matrix and non-negative eigenvalues.
     """
     
     def __init__(
         self,
         eigenvalues: Optional[List[float]] = None,
         eigenvectors: Optional[np.ndarray] = None,
-        eigenvalue_functions: Optional[List[callable]] = None,
+        eigenvalue_functions: Optional[List[Callable]] = None,
         n_factors: int = 3,
         name: str = "SpectralCorrelation"
     ):
         """
-        Initialize spectral correlation.
+        Initialize spectral correlation structure.
         
         Args:
-            eigenvalues: List of eigenvalues
-            eigenvectors: Matrix of eigenvectors
-            eigenvalue_functions: List of eigenvalue functions
-            n_factors: Number of factors
-            name: Name of the correlation structure
+            eigenvalues (Optional[List[float]]): List of base eigenvalues.
+                If None, defaults to ones.
+            eigenvectors (Optional[np.ndarray]): Matrix of orthonormal eigenvectors.
+                If None, defaults to identity matrix.
+            eigenvalue_functions (Optional[List[Callable]]): List of functions
+                for computing time/state-dependent eigenvalues. Each function
+                should take (t, state) and return an eigenvalue.
+            n_factors (int): Number of factors in the correlation structure
+            name (str): Name identifier for the correlation structure
             
         Raises:
-            CorrelationValidationError: If initialization fails
+            CorrelationValidationError: If initialization parameters are invalid
+            ValueError: If eigenvalue functions are invalid
+            
+        Example:
+            >>> # Create a spectral correlation with decaying eigenvalues
+            >>> n_factors = 3
+            >>> eigenvalues = [1.0, 0.8, 0.6]
+            >>> eigenvectors = np.eye(n_factors)
+            >>> corr = SpectralCorrelation(eigenvalues, eigenvectors)
         """
         super().__init__(n_factors=n_factors, name=name)
         self.eigenvalues = eigenvalues or [1.0] * n_factors
@@ -69,12 +126,23 @@ class SpectralCorrelation(BaseCorrelation):
         self._validate_initialization()
         logger.debug(f"Initialized {self.name} with {n_factors} factors")
     
-    def _validate_initialization(self):
+    def _validate_initialization(self) -> None:
         """
         Validate initialization parameters.
         
+        Performs comprehensive validation of initialization parameters:
+        1. Number of eigenvalues matches number of factors
+        2. Eigenvector matrix is square and matches number of factors
+        3. Number of eigenvalue functions matches number of factors
+        4. Eigenvalues are in [0, 1]
+        5. Eigenvectors are orthonormal
+        
         Raises:
-            CorrelationValidationError: If validation fails
+            CorrelationValidationError: If any validation check fails
+            
+        Note:
+            The validation ensures that the correlation matrix will be
+            positive definite and have unit diagonal elements.
         """
         if len(self.eigenvalues) != self.n_factors:
             raise CorrelationValidationError(
@@ -105,17 +173,25 @@ class SpectralCorrelation(BaseCorrelation):
         state: Optional[Dict[str, float]] = None
     ) -> np.ndarray:
         """
-        Compute eigenvalues at time t.
+        Compute eigenvalues at time t and state.
+        
+        This method computes the current eigenvalues using the
+        eigenvalue functions, ensuring they remain in the valid range [0, 1].
         
         Args:
-            t: Time point
-            state: Current state variables
+            t (float): Current time point
+            state (Optional[Dict[str, float]]): Current state variables
+                that may influence the eigenvalues
             
         Returns:
-            Array of eigenvalues
+            np.ndarray: Array of valid eigenvalues in range [0, 1]
             
         Raises:
-            CorrelationError: If computation fails
+            CorrelationError: If eigenvalue computation fails
+            
+        Note:
+            The eigenvalues are clipped to [0, 1] to ensure positive
+            definiteness of the correlation matrix.
         """
         try:
             eigenvalues = np.array([
@@ -135,17 +211,32 @@ class SpectralCorrelation(BaseCorrelation):
         state: Optional[Dict[str, float]] = None
     ) -> np.ndarray:
         """
-        Get the correlation matrix at time t.
+        Get the correlation matrix at time t and state.
+        
+        This method computes the full correlation matrix by:
+        1. Computing current eigenvalues
+        2. Constructing correlations using the spectral formula
+        3. Ensuring valid correlation values
+        4. Validating the resulting matrix
         
         Args:
-            t: Time point
-            state: Current state variables
+            t (float): Time point at which to compute correlations
+            state (Optional[Dict[str, float]]): Current state variables
+                that may influence correlations
             
         Returns:
-            Correlation matrix (n_factors x n_factors)
+            np.ndarray: Valid correlation matrix (n_factors x n_factors)
             
         Raises:
-            CorrelationError: If computation fails
+            CorrelationError: If correlation computation fails
+            
+        Example:
+            >>> corr = SpectralCorrelation(n_factors=3)
+            >>> matrix = corr.get_correlation_matrix(t=1.0)
+            >>> print(matrix)
+            [[1.0  0.0  0.0]
+             [0.0  1.0  0.0]
+             [0.0  0.0  1.0]]
         """
         try:
             # Compute eigenvalues
@@ -168,14 +259,24 @@ class SpectralCorrelation(BaseCorrelation):
             raise CorrelationError(f"Failed to compute correlation matrix: {str(e)}")
     
     def __str__(self) -> str:
-        """String representation of the correlation structure."""
+        """
+        String representation of the correlation structure.
+        
+        Returns:
+            str: Simple string representation showing key parameters
+        """
         return (
             f"{self.name}("
             f"n_factors={self.n_factors})"
         )
     
     def __repr__(self) -> str:
-        """Detailed string representation of the correlation structure."""
+        """
+        Detailed string representation of the correlation structure.
+        
+        Returns:
+            str: Detailed string representation showing all parameters
+        """
         return (
             f"{self.__class__.__name__}("
             f"eigenvalues={self.eigenvalues}, "
@@ -191,18 +292,34 @@ def create_spectral_correlation(
     decay_rate: float = 0.1
 ) -> SpectralCorrelation:
     """
-    Create a spectral correlation structure.
+    Create a spectral correlation structure with specified parameters.
     
-    This function creates a spectral correlation structure with specified
-    number of factors and eigenvalue type.
+    This factory function creates a SpectralCorrelation instance with
+    predefined eigenvalue functions for common use cases:
+    - constant: Time-invariant eigenvalues
+    - decay: Exponentially decaying eigenvalues
+    - oscillate: Oscillating eigenvalues with cosine function
     
     Args:
-        n_factors: Number of factors
-        eigenvalue_type: Type of eigenvalue function ('constant', 'decay', 'oscillate')
-        decay_rate: Rate of eigenvalue decay
+        n_factors (int): Number of factors in the correlation structure
+        eigenvalue_type (str): Type of eigenvalue function to use
+            ('constant', 'decay', or 'oscillate')
+        decay_rate (float): Rate parameter for eigenvalue decay/oscillation
         
     Returns:
-        SpectralCorrelation instance
+        SpectralCorrelation: Configured spectral correlation instance
+        
+    Raises:
+        ValueError: If eigenvalue_type is invalid
+        
+    Example:
+        >>> # Create a spectral correlation with decaying eigenvalues
+        >>> corr = create_spectral_correlation(
+        ...     n_factors=3,
+        ...     eigenvalue_type='decay',
+        ...     decay_rate=0.1
+        ... )
+        >>> matrix = corr.get_correlation_matrix(t=1.0)
     """
     # Create default eigenvalues
     eigenvalues = [1.0] * n_factors
@@ -210,7 +327,7 @@ def create_spectral_correlation(
     # Create default eigenvectors (identity matrix)
     eigenvectors = np.eye(n_factors)
     
-    # Create eigenvalue functions
+    # Create eigenvalue functions based on type
     if eigenvalue_type == 'constant':
         eigenvalue_functions = [lambda t, s: 1.0] * n_factors
     elif eigenvalue_type == 'decay':
