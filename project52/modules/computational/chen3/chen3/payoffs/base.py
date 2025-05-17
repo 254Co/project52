@@ -1,7 +1,9 @@
 # File: chen3/payoffs/base.py
 """Base Payoff interface."""
 from abc import ABC, abstractmethod
+
 import numpy as np
+
 
 class Payoff(ABC):
     @abstractmethod

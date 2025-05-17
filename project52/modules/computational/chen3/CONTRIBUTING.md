@@ -65,4 +65,4 @@ All submissions require review. We use GitHub pull requests for this purpose. Pl
 
 ## License
 
-By contributing to Chen3, you agree that your contributions will be licensed under the project's Apache License 2.0. 
+By contributing to Chen3, you agree that your contributions will be licensed under the project's Apache License 2.0.

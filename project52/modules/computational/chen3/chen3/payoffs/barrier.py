@@ -1,15 +1,13 @@
 # File: chen3/payoffs/barrier.py
 """Barrier option payoffs (knock-in / knock-out)."""
 import numpy as np
+
 from .base import Payoff
+
 
 class Barrier(Payoff):
     def __init__(
-        self,
-        strike: float,
-        barrier: float,
-        knock_in: bool = True,
-        call: bool = True
+        self, strike: float, barrier: float, knock_in: bool = True, call: bool = True
     ):
         """
         strike    : exercise price

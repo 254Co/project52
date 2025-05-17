@@ -81,34 +81,36 @@ Example Usage:
     >>> model = ChenModel(params, settings=settings)
 """
 
-from typing import Optional, Literal
-from pydantic import BaseModel, Field, field_validator
+from typing import Literal, Optional
+
 import numpy as np
+from pydantic import BaseModel, Field, field_validator
+
 
 class Settings(BaseModel):
     """
     Configuration settings for the Chen model.
-    
+
     This class defines all configurable parameters for model simulation,
     numerical methods, and performance optimization. It uses Pydantic for
     parameter validation and type checking.
-    
+
     Mathematical Properties:
     ----------------------
     1. Time Discretization:
        - Fixed time step: dt = T/n_steps
        - Adaptive time step: dt = min(dt_max, error_tol/|error|)
-    
+
     2. Path Generation:
        - Base paths: n_paths
        - Antithetic paths: 2 * n_paths if use_antithetic
        - Control variate paths: n_paths if use_control_variate
-    
+
     3. Error Control:
        - Absolute tolerance: absolute_tol
        - Relative tolerance: relative_tol
        - Combined: max(absolute_tol, relative_tol * |value|)
-    
+
     Attributes:
         backend (str): Computational backend ('numpy' or 'cuda')
             Determines the numerical computation engine
@@ -141,7 +143,7 @@ class Settings(BaseModel):
         random_seed (Optional[int]): Random number generator seed
             Ensures reproducibility of results
             None: use system time
-    
+
     Example:
         >>> settings = Settings(
         ...     backend='numpy',
@@ -156,112 +158,92 @@ class Settings(BaseModel):
         ...     random_seed=42
         ... )
     """
-    
-    backend: Literal['numpy', 'cuda'] = Field(
-        default='numpy',
-        description="Computational backend ('numpy' or 'cuda')"
+
+    backend: Literal["numpy", "cuda"] = Field(
+        default="numpy", description="Computational backend ('numpy' or 'cuda')"
     )
-    
+
     n_paths: int = Field(
-        default=10000,
-        ge=1000,
-        description="Number of simulation paths"
+        default=10000, ge=1000, description="Number of simulation paths"
     )
-    
-    n_steps: int = Field(
-        default=100,
-        ge=50,
-        description="Number of time steps"
-    )
-    
-    dt: float = Field(
-        default=0.01,
-        gt=0,
-        le=0.1,
-        description="Time step size"
-    )
-    
+
+    n_steps: int = Field(default=100, ge=50, description="Number of time steps")
+
+    dt: float = Field(default=0.01, gt=0, le=0.1, description="Time step size")
+
     use_control_variate: bool = Field(
-        default=True,
-        description="Whether to use control variates"
+        default=True, description="Whether to use control variates"
     )
-    
+
     use_antithetic: bool = Field(
-        default=True,
-        description="Whether to use antithetic variates"
+        default=True, description="Whether to use antithetic variates"
     )
-    
+
     use_parallel: bool = Field(
-        default=True,
-        description="Whether to use parallel processing"
+        default=True, description="Whether to use parallel processing"
     )
-    
+
     n_jobs: int = Field(
-        default=-1,
-        ge=-1,
-        description="Number of parallel jobs (-1 for all cores)"
+        default=-1, ge=-1, description="Number of parallel jobs (-1 for all cores)"
     )
-    
-    cache_size: int = Field(
-        default=1000,
-        ge=0,
-        description="Size of the result cache"
-    )
-    
+
+    cache_size: int = Field(default=1000, ge=0, description="Size of the result cache")
+
     random_seed: Optional[int] = Field(
-        default=None,
-        description="Random number generator seed"
+        default=None, description="Random number generator seed"
     )
-    
-    @field_validator('n_jobs')
+
+    @field_validator("n_jobs")
     def validate_n_jobs(cls, v, values):
         """
         Validate the number of parallel jobs.
-        
+
         Args:
             v (int): Number of jobs
             values (dict): Other field values
-            
+
         Returns:
             int: Validated number of jobs
-            
+
         Raises:
             ValueError: If validation fails
         """
-        if values.get('use_parallel') and v == 0:
+        if values.get("use_parallel") and v == 0:
             raise ValueError("n_jobs must be positive when use_parallel is True")
         return v
-    
-    @field_validator('backend')
+
+    @field_validator("backend")
     def validate_backend(cls, v):
         """
         Validate the computational backend.
-        
+
         Args:
             v (str): Backend name
-            
+
         Returns:
             str: Validated backend name
-            
+
         Raises:
             ValueError: If validation fails
         """
-        if v == 'cuda':
+        if v == "cuda":
             try:
                 import torch
+
                 if not torch.cuda.is_available():
                     raise ValueError("CUDA is not available")
             except ImportError:
                 raise ValueError("PyTorch is required for CUDA backend")
         return v
-    
+
     class Config:
         """
         Pydantic model configuration.
-        
+
         This class configures the behavior of the Pydantic model,
         including validation, serialization, and documentation.
         """
+
         validate_assignment = True
         arbitrary_types_allowed = True
-        extra = 'forbid'
+        extra = "forbid"

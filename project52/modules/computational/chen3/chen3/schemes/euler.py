@@ -15,57 +15,76 @@ using the discrete-time approximation:
 where Z_t is a standard normal random variable.
 """
 
+from typing import Callable, Optional, Tuple, Union
 import numpy as np
-from numba import njit
-from typing import Callable, Optional, Tuple
+from numba import njit, float64, types
+from numba.experimental import jitclass
 
+@njit
+def _euler_step(state: float64, z: float64, dt: float64, drift: float64, diffusion: float64) -> float64:
+    """
+    Compute one step of the Euler-Maruyama scheme.
 
-def euler_scheme(drift_fn, diffusion_fn, dt: float):
+    Args:
+        state: Current state of the process
+        z: Standard normal random variable
+        dt: Time step size
+        drift: Drift term value
+        diffusion: Diffusion term value
+
+    Returns:
+        Next state according to the Euler-Maruyama scheme
+    """
+    return state + drift * dt + diffusion * np.sqrt(dt) * z
+
+def euler_scheme(drift_fn: Callable, diffusion_fn: Callable, dt: float):
     """
     Create an Euler-Maruyama step function for SDE integration.
-    
+
     This function returns a Numba-compiled step function that implements the
     Euler-Maruyama scheme for numerical integration of stochastic differential
     equations. The returned function is optimized for performance using Numba's
     just-in-time compilation.
-    
+
     Args:
         drift_fn (callable): Function computing the drift term μ(X_t)
                             Must accept a state array and return drift values
         diffusion_fn (callable): Function computing the diffusion term σ(X_t)
                                 Must accept a state array and return diffusion values
         dt (float): Time step size for the numerical scheme (dt > 0)
-    
+
     Returns:
         callable: A Numba-compiled step function that takes (state, z) as arguments
                  and returns the next state according to the Euler-Maruyama scheme
-    
+
     Example:
         >>> def drift(state): return 0.1 * state
         >>> def diffusion(state): return 0.2 * state
         >>> step = euler_scheme(drift, diffusion, dt=0.01)
         >>> next_state = step(current_state, random_normal)
-    
+
     Notes:
         - The returned function is Numba-compiled for performance
         - The scheme is first-order accurate in the strong sense
         - The scheme is first-order accurate in the weak sense
         - The scheme may not preserve positivity of the solution
     """
-    @njit(fastmath=True)
-    def step(state, z):
+    @njit
+    def step(state: float64, z: float64) -> float64:
         """
         Compute one step of the Euler-Maruyama scheme.
-        
+
         Args:
-            state (np.ndarray): Current state of the process
-            z (np.ndarray): Standard normal random variables
-        
+            state: Current state of the process
+            z: Standard normal random variable
+
         Returns:
-            np.ndarray: Next state according to the Euler-Maruyama scheme
+            Next state according to the Euler-Maruyama scheme
         """
-        return state + drift_fn(state)*dt + diffusion_fn(state)*np.sqrt(dt)*z
-    
+        drift = drift_fn(state)
+        diffusion = diffusion_fn(state)
+        return _euler_step(state, z, dt, drift, diffusion)
+
     return step
 
 
@@ -95,17 +114,11 @@ class EulerMaruyama:
         """
         self.mu = mu
         self.sigma = sigma
-        
+
         if sigma(0) < 0:
             raise ValueError("Diffusion coefficient must be non-negative")
 
-    def simulate(
-        self,
-        S0: float,
-        dt: float,
-        n_steps: int,
-        n_paths: int
-    ) -> np.ndarray:
+    def simulate(self, S0: float, dt: float, n_steps: int, n_paths: int) -> np.ndarray:
         """
         Simulate paths using the Euler-Maruyama scheme.
 
@@ -128,10 +141,6 @@ class EulerMaruyama:
         # Simulate paths
         for i in range(n_steps):
             t = i * dt
-            paths[:, i + 1] = (
-                paths[:, i] +
-                self.mu(t) * dt +
-                self.sigma(t) * dW[:, i]
-            )
+            paths[:, i + 1] = paths[:, i] + self.mu(t) * dt + self.sigma(t) * dW[:, i]
 
         return paths

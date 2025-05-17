@@ -1,7 +1,9 @@
 # File: chen3/payoffs/convertible_bond.py
 """Convertible bond payoff (equity- conversion)."""
 import numpy as np
+
 from .base import Payoff
+
 
 class ConvertibleBond(Payoff):
     def __init__(self, face_value: float, conversion_ratio: float):

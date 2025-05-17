@@ -2,8 +2,9 @@
 """
 Credit Valuation Adjustment (CVA) and Debit Valuation Adjustment (DVA).
 """
-import numpy as np
 from typing import Tuple
+
+import numpy as np
 
 
 def cva_dva(
@@ -13,7 +14,7 @@ def cva_dva(
     hazard_ccp: np.ndarray,
     hazard_bank: np.ndarray,
     lgd_ccp: float = 0.6,
-    lgd_bank: float = 0.6
+    lgd_bank: float = 0.6,
 ) -> Tuple[float, float]:
     """
     Compute CVA and DVA from exposure profiles and hazard rates.

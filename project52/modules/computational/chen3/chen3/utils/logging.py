@@ -12,30 +12,31 @@ throughout the package.
 
 import logging
 import sys
-from typing import Optional, Any, Dict
 from pathlib import Path
+from typing import Any, Dict, Optional
+
 
 class ChenLogger:
     """
     Custom logger for the Chen3 package with different log levels and formatting.
-    
+
     This class provides a wrapper around Python's logging module with pre-configured
     formatters and handlers for both console and file output. It supports different
     log levels and can be configured to write logs to both console and file.
-    
+
     Attributes:
         logger (logging.Logger): The underlying Python logger instance
     """
-    
+
     def __init__(
         self,
         name: str = "chen3",
         level: int = logging.INFO,
-        log_file: Optional[Path] = None
+        log_file: Optional[Path] = None,
     ):
         """
         Initialize the ChenLogger with specified configuration.
-        
+
         Args:
             name (str): Name of the logger, defaults to "chen3"
             level (int): Logging level, defaults to logging.INFO
@@ -43,74 +44,74 @@ class ChenLogger:
         """
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
-        
+
         # Create formatters with different levels of detail
         console_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
         file_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
+            "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
         )
-        
+
         # Console handler for immediate feedback
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
-        
+
         # File handler for detailed logging if specified
         if log_file:
             file_handler = logging.FileHandler(log_file)
             file_handler.setFormatter(file_formatter)
             self.logger.addHandler(file_handler)
-    
+
     def debug(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
         """
         Log a debug message.
-        
+
         Args:
             msg (str): The message to log
             *args: Variable length argument list
             **kwargs: Arbitrary keyword arguments
         """
         self.logger.debug(msg, *args, **kwargs)
-    
+
     def info(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
         """
         Log an info message.
-        
+
         Args:
             msg (str): The message to log
             *args: Variable length argument list
             **kwargs: Arbitrary keyword arguments
         """
         self.logger.info(msg, *args, **kwargs)
-    
+
     def warning(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
         """
         Log a warning message.
-        
+
         Args:
             msg (str): The message to log
             *args: Variable length argument list
             **kwargs: Arbitrary keyword arguments
         """
         self.logger.warning(msg, *args, **kwargs)
-    
+
     def error(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
         """
         Log an error message.
-        
+
         Args:
             msg (str): The message to log
             *args: Variable length argument list
             **kwargs: Arbitrary keyword arguments
         """
         self.logger.error(msg, *args, **kwargs)
-    
+
     def critical(self, msg: str, *args: Any, **kwargs: Dict[str, Any]) -> None:
         """
         Log a critical message.
-        
+
         Args:
             msg (str): The message to log
             *args: Variable length argument list
@@ -118,5 +119,6 @@ class ChenLogger:
         """
         self.logger.critical(msg, *args, **kwargs)
 
+
 # Create default logger instance for use throughout the package
-logger = ChenLogger() 
+logger = ChenLogger()

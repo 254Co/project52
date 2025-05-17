@@ -2,25 +2,32 @@
 """
 Streamlit dashboard for Chen3 package.
 """
-import streamlit as st
 import numpy as np
 import pandas as pd
+import streamlit as st
 
 from chen3 import (
-    ChenModel, RateParams, EquityParams, ModelParams,
-    make_simulator, MonteCarloPricer, Settings
+    ChenModel,
+    EquityParams,
+    ModelParams,
+    MonteCarloPricer,
+    RateParams,
+    Settings,
+    make_simulator,
 )
 from chen3.payoffs import Vanilla
 
+
 @st.cache_resource
 def initialize_engine(model_params, settings_params):
-    rate = RateParams(**model_params['rate'])
-    equity = EquityParams(**model_params['equity'])
+    rate = RateParams(**model_params["rate"])
+    equity = EquityParams(**model_params["equity"])
     corr = np.eye(3)
     model = ChenModel(ModelParams(rate, equity, corr))
     settings = Settings(**settings_params)
     sim = make_simulator(model, settings)
     return sim, settings, rate
+
 
 def run_dashboard():
     st.title("Chen3 Risk Dashboard")
@@ -40,10 +47,24 @@ def run_dashboard():
     n_steps = st.sidebar.number_input("Steps", value=252)
 
     model_params = {
-        'rate': {'kappa': kappa, 'theta': theta, 'sigma': sigma_r, 'r0': r0},
-        'equity': {'mu': mu, 'q': q, 'S0': S0, 'v0': v0, 'kappa_v': kappa_v, 'theta_v': theta_v, 'sigma_v': sigma_v}
+        "rate": {"kappa": kappa, "theta": theta, "sigma": sigma_r, "r0": r0},
+        "equity": {
+            "mu": mu,
+            "q": q,
+            "S0": S0,
+            "v0": v0,
+            "kappa_v": kappa_v,
+            "theta_v": theta_v,
+            "sigma_v": sigma_v,
+        },
     }
-    settings_params = {'seed': 42, 'backend': 'cpu', 'n_paths': n_paths, 'n_steps': n_steps, 'dt': 1/252}
+    settings_params = {
+        "seed": 42,
+        "backend": "cpu",
+        "n_paths": n_paths,
+        "n_steps": n_steps,
+        "dt": 1 / 252,
+    }
     sim, settings, rate = initialize_engine(model_params, settings_params)
 
     if st.sidebar.button("Run Monte Carlo"):
@@ -53,7 +74,7 @@ def run_dashboard():
             payoff,
             discount_curve=lambda T: np.exp(-rate.theta * T),
             dt=settings.dt,
-            n_steps=settings.n_steps
+            n_steps=settings.n_steps,
         )
         price = pricer.price(paths)
         st.metric("Monte Carlo Price", f"{price:.4f}")

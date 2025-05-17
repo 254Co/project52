@@ -2,22 +2,30 @@
 """
 Task queue manager using Celery for asynchronous jobs.
 """
-from celery import Celery
 import numpy as np
+from celery import Celery
 
 from chen3 import (
-    ChenModel, RateParams, EquityParams, ModelParams,
-    make_simulator, MonteCarloPricer, Settings
+    ChenModel,
+    EquityParams,
+    ModelParams,
+    MonteCarloPricer,
+    RateParams,
+    Settings,
+    make_simulator,
 )
 from chen3.payoffs import Vanilla
 
-app = Celery('chen3_tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+app = Celery(
+    "chen3_tasks", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0"
+)
+
 
 @app.task
 def price_task(model_dict, payoff_dict, settings_dict):
-    rate = RateParams(**model_dict['rate'])
-    equity = EquityParams(**model_dict['equity'])
-    corr = np.array(model_dict['corr_matrix'])
+    rate = RateParams(**model_dict["rate"])
+    equity = EquityParams(**model_dict["equity"])
+    corr = np.array(model_dict["corr_matrix"])
     model = ChenModel(ModelParams(rate, equity, corr))
     cfg = Settings(**settings_dict)
     sim = make_simulator(model, cfg)
@@ -27,15 +35,16 @@ def price_task(model_dict, payoff_dict, settings_dict):
         payoff,
         discount_curve=lambda T: np.exp(-rate.theta * T),
         dt=cfg.dt,
-        n_steps=cfg.n_steps
+        n_steps=cfg.n_steps,
     )
     return float(pricer.price(paths))
 
+
 @app.task
 def simulate_task(model_dict, settings_dict):
-    rate = RateParams(**model_dict['rate'])
-    equity = EquityParams(**model_dict['equity'])
-    corr = np.array(model_dict['corr_matrix'])
+    rate = RateParams(**model_dict["rate"])
+    equity = EquityParams(**model_dict["equity"])
+    corr = np.array(model_dict["corr_matrix"])
     model = ChenModel(ModelParams(rate, equity, corr))
     cfg = Settings(**settings_dict)
     sim = make_simulator(model, cfg)

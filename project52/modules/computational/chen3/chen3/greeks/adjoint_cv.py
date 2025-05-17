@@ -54,7 +54,7 @@ Example usage:
     >>> paths = simulate_paths(n_paths=10000, n_steps=252)
     >>> # Compute variance-reduced price
     >>> price = adjoint_control_variate(
-    ...     paths, 
+    ...     paths,
     ...     european_call_payoff,
     ...     cv_term=1.0  # known expectation of control variate
     ... )
@@ -67,29 +67,31 @@ Notes:
     - Implementation requires careful handling of numerical stability
 """
 
-import numpy as np
 from typing import Callable, Optional
+
+import numpy as np
+
 
 def adjoint_control_variate(
     paths: np.ndarray,
     payoff: Callable[[np.ndarray], np.ndarray],
     cv_term: float,
-    cv_vals: Optional[np.ndarray] = None
+    cv_vals: Optional[np.ndarray] = None,
 ) -> float:
     """
     Combine pathwise payoff with a precomputed control variate for variance reduction.
-    
+
     This function applies the control variate technique to reduce the variance of
     Monte Carlo estimators. It assumes the existence of a control variate with a
     known expected value and computes the optimal adjustment to the payoff.
-    
+
     The method works by:
     1. Computing the original payoff values
     2. Evaluating the control variate (if not provided)
     3. Computing the optimal weight β to minimize variance
     4. Adjusting the payoff using the control variate
     5. Taking the mean of the adjusted values
-    
+
     Mathematical formulation:
         X_adj = X - β(Y - E[Y])
         where:
@@ -97,33 +99,33 @@ def adjoint_control_variate(
         - Y is the control variate
         - E[Y] is the known expectation (cv_term)
         - β = Cov[X,Y] / Var[Y] is the optimal weight
-    
+
     Args:
-        paths (np.ndarray): 
+        paths (np.ndarray):
             Simulated Monte Carlo paths with shape (n_paths, n_steps+1, n_factors)
             - First dimension: number of simulation paths
             - Second dimension: time steps (including initial value)
             - Third dimension: state factors
-        payoff (Callable[[np.ndarray], np.ndarray]): 
+        payoff (Callable[[np.ndarray], np.ndarray]):
             Payoff function that maps paths to payoffs
             - Input: path array of shape (n_paths, n_steps+1, n_factors)
             - Output: array of shape (n_paths,) containing payoffs
-        cv_term (float): 
+        cv_term (float):
             Known expected value of the control variate (E[Y])
             - Should be precomputed analytically or numerically
             - Must be accurate for effective variance reduction
-        cv_vals (np.ndarray, optional): 
+        cv_vals (np.ndarray, optional):
             Precomputed control variate values with shape (n_paths,)
             - If None, zeros are used as a placeholder
             - In production, should be computed from paths
-    
+
     Returns:
         float: Variance-reduced Monte Carlo estimator
-    
+
     Raises:
         ValueError: If paths array is empty or has incorrect shape
         TypeError: If payoff function is not callable
-    
+
     Example:
         >>> # Define payoff and control variate
         >>> def european_call_payoff(paths):
@@ -142,13 +144,13 @@ def adjoint_control_variate(
         >>> cv_vals = compute_control_variate(paths)
         >>> # Compute variance-reduced price
         >>> price = adjoint_control_variate(
-        ...     paths, 
+        ...     paths,
         ...     european_call_payoff,
         ...     cv_term=1.0,  # known expectation
         ...     cv_vals=cv_vals
         ... )
         >>> print(f"Variance-reduced price: {price:.4f}")
-    
+
     Notes:
         - The control variate should be highly correlated with the payoff
         - The optimal weight β is computed to minimize variance
@@ -162,6 +164,6 @@ def adjoint_control_variate(
     # and we have control variate value stored: cv_vals
     # Here cv_vals placeholder as zeros
     cv_vals = np.zeros_like(payoffs) if cv_vals is None else cv_vals
-    beta = np.cov(payoffs, cv_vals)[0,1] / (np.var(cv_vals) + 1e-12)
+    beta = np.cov(payoffs, cv_vals)[0, 1] / (np.var(cv_vals) + 1e-12)
     adjusted = payoffs - beta * (cv_vals - cv_term)
     return float(np.mean(adjusted))

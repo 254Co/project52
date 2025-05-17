@@ -2,18 +2,22 @@
 """
 Autocallable/Snowball payoff with early redemption and coupons.
 """
-import numpy as np
 from typing import List
+
+import numpy as np
+
 from ..base import Payoff
 
 
 class Autocallable(Payoff):
-    def __init__(self,
-                 obs_times: List[int],
-                 barrier: float,
-                 coupon: float,
-                 maturity: int,
-                 notional: float = 1.0):
+    def __init__(
+        self,
+        obs_times: List[int],
+        barrier: float,
+        coupon: float,
+        maturity: int,
+        notional: float = 1.0,
+    ):
         """
         obs_times: observation indices (including maturity)
         barrier: redemption barrier level

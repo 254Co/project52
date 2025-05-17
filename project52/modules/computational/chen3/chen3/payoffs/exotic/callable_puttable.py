@@ -2,16 +2,21 @@
 """
 Callable/Puttable structure with optional early exercise.
 """
-import numpy as np
 from typing import List
+
+import numpy as np
+
 from ..base import Payoff
 
+
 class CallablePuttable(Payoff):
-    def __init__(self,
-                 obs_times: List[int],
-                 call_strike: float,
-                 put_strike: float,
-                 notional: float = 1.0):
+    def __init__(
+        self,
+        obs_times: List[int],
+        call_strike: float,
+        put_strike: float,
+        notional: float = 1.0,
+    ):
         """
         obs_times: time indices for possible exercise
         call_strike: strike at which issuer can call (sell) the instrument

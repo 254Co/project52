@@ -45,8 +45,10 @@ Example usage:
     >>> stream = CalibrationStream(market_data_source(), model_funcs)
     >>> stream.run(lambda params: update_pricing_engine(params))
 """
-from typing import Callable, Dict, Any, Iterable
+from typing import Any, Callable, Dict, Iterable
+
 from .optim import calibrate
+
 
 class CalibrationStream:
     """
@@ -116,9 +118,8 @@ class CalibrationStream:
         - Consider implementing error handling in the callback
         - The calibration process may take significant time for each snapshot
     """
-    def __init__(self,
-                 source: Iterable[Dict[str, Any]],
-                 model_funcs: Dict[str, Any]):
+
+    def __init__(self, source: Iterable[Dict[str, Any]], model_funcs: Dict[str, Any]):
         """
         Initialize the streaming calibration engine.
 

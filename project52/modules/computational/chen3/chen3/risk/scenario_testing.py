@@ -2,13 +2,16 @@
 """
 Historical and hypothetical scenario analysis.
 """
+from typing import Any, Dict, List
+
 import numpy as np
-from typing import Dict, Any, List
+
 
 class ScenarioTest:
     """
     Apply a set of named scenarios to model inputs and collect results.
     """
+
     def __init__(self, scenarios: Dict[str, Dict[str, Any]]):
         """
         scenarios: mapping scenario_name -> parameter shock dict
@@ -16,12 +19,7 @@ class ScenarioTest:
         """
         self.scenarios = scenarios
 
-    def run(
-        self,
-        base_model_fn,
-        *args,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def run(self, base_model_fn, *args, **kwargs) -> Dict[str, Any]:
         """
         base_model_fn: callable that prices or simulates under given kwargs
         returns mapping scenario_name -> result

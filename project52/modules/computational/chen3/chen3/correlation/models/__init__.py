@@ -69,25 +69,22 @@ correlations through configurable functions that can model:
 - Dynamic correlation patterns
 """
 
-from .network import NetworkCorrelation, create_network_correlation
 from .fractal import FractalCorrelation, create_fractal_correlation
-from .wavelet import WaveletCorrelation, create_wavelet_correlation
+from .network import NetworkCorrelation, create_network_correlation
 from .spectral import SpectralCorrelation, create_spectral_correlation
+from .wavelet import WaveletCorrelation, create_wavelet_correlation
 
 __all__ = [
     # Network correlation
     "NetworkCorrelation",
     "create_network_correlation",
-    
     # Fractal correlation
     "FractalCorrelation",
     "create_fractal_correlation",
-    
     # Wavelet correlation
     "WaveletCorrelation",
     "create_wavelet_correlation",
-    
     # Spectral correlation
     "SpectralCorrelation",
-    "create_spectral_correlation"
-] 
+    "create_spectral_correlation",
+]

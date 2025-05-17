@@ -2,9 +2,12 @@
 """
 Equity-rate hybrid product payoff, e.g., equity-linked note.
 """
-import numpy as np
 from typing import Any
+
+import numpy as np
+
 from ..base import Payoff
+
 
 class EquityRateHybridProduct(Payoff):
     def __init__(
@@ -12,7 +15,7 @@ class EquityRateHybridProduct(Payoff):
         notional: float,
         equity_strike: float,
         coupon_rate: float,
-        r_obs_times: Any  # indices for rate observations
+        r_obs_times: Any,  # indices for rate observations
     ):
         """
         notional: principal amount

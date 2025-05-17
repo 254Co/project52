@@ -2,14 +2,14 @@
 """
 Compute Expected Exposure (EE) and Potential Future Exposure (PFE) profiles.
 """
+from typing import List, Tuple
+
 import numpy as np
 import pandas as pd
-from typing import Tuple, List
+
 
 def exposure_profiles(
-    values: np.ndarray,
-    times: np.ndarray,
-    pfe_quantile: float = 0.95
+    values: np.ndarray, times: np.ndarray, pfe_quantile: float = 0.95
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Given simulated portfolio values at each time step,
@@ -36,6 +36,6 @@ def exposure_profiles(
     # PFE: quantile of exposure
     pfe = np.quantile(exposures, pfe_quantile, axis=0)
 
-    ee_df = pd.DataFrame({'time': times, 'EE': ee})
-    pfe_df = pd.DataFrame({'time': times, f'PFE_{int(pfe_quantile*100)}': pfe})
+    ee_df = pd.DataFrame({"time": times, "EE": ee})
+    pfe_df = pd.DataFrame({"time": times, f"PFE_{int(pfe_quantile*100)}": pfe})
     return ee_df, pfe_df

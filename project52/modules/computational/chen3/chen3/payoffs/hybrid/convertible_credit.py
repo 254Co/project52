@@ -2,9 +2,12 @@
 """
 Convertible bond payoff including credit default.
 """
-import numpy as np
 from typing import Any
+
+import numpy as np
+
 from ..base import Payoff
+
 
 class ConvertibleCreditBond(Payoff):
     def __init__(
@@ -13,7 +16,7 @@ class ConvertibleCreditBond(Payoff):
         conversion_ratio: float,
         default_hazard: float,
         recovery_rate: float,
-        dt: float
+        dt: float,
     ):
         """
         face_value: par amount
@@ -50,7 +53,7 @@ class ConvertibleCreditBond(Payoff):
         # payoff if survives
         survive_payoff = np.maximum(self.face_value, self.conversion_ratio * S_T)
         # payoff array
-        payoff = np.where(default_step <= mat_idx,
-                          self.recovery * self.face_value,
-                          survive_payoff)
+        payoff = np.where(
+            default_step <= mat_idx, self.recovery * self.face_value, survive_payoff
+        )
         return payoff

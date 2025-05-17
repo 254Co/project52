@@ -2,10 +2,11 @@
 """
 Cache for risk sensitivities to avoid redundant computation.
 """
-import pickle
 import hashlib
 import os
+import pickle
 from typing import Any, Callable
+
 
 class SensitivityCache:
     def __init__(self, cache_dir: str = ".cache"):  # relative path
@@ -19,11 +20,11 @@ class SensitivityCache:
     def get(self, key: str) -> Any:
         path = self._cache_file(key)
         if os.path.exists(path):
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 return pickle.load(f)
         return None
 
     def set(self, key: str, value: Any) -> None:
         path = self._cache_file(key)
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             pickle.dump(value, f)

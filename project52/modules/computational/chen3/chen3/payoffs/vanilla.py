@@ -1,7 +1,9 @@
 # File: chen3/payoffs/vanilla.py
 """Vanilla European option payoff."""
 import numpy as np
+
 from .base import Payoff
+
 
 class Vanilla(Payoff):
     def __init__(self, strike: float, call: bool = True):

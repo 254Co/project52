@@ -41,82 +41,62 @@ Example Usage:
 """
 
 from .core.base import BaseCorrelation
-
-# Basic correlation models
-from .models.time_dependent import TimeDependentCorrelation
-from .models.state_dependent import (
-    StateDependentCorrelation,
-    linear_state_correlation,
-    exponential_state_correlation
-)
-from .models.regime_switching import (
-    RegimeSwitchingCorrelation,
-    create_two_regime_correlation
-)
-from .models.stochastic import (
-    StochasticCorrelation,
-    create_stochastic_correlation
-)
 from .models.copula import (
     CopulaCorrelation,
     create_gaussian_copula_correlation,
-    create_student_copula_correlation
+    create_student_copula_correlation,
+)
+from .models.dynamic import DynamicCorrelation, create_dynamic_correlation
+from .models.fractal import FractalCorrelation, create_fractal_correlation
+from .models.hierarchical import (
+    HierarchicalCorrelation,
+    create_hierarchical_correlation,
 )
 
 # Advanced correlation models
-from .models.network import (
-    NetworkCorrelation,
-    create_network_correlation
+from .models.network import NetworkCorrelation, create_network_correlation
+from .models.regime_switching import (
+    RegimeSwitchingCorrelation,
+    create_two_regime_correlation,
 )
-from .models.fractal import (
-    FractalCorrelation,
-    create_fractal_correlation
+from .models.spectral import SpectralCorrelation, create_spectral_correlation
+from .models.state_dependent import (
+    StateDependentCorrelation,
+    exponential_state_correlation,
+    linear_state_correlation,
 )
-from .models.wavelet import (
-    WaveletCorrelation,
-    create_wavelet_correlation
-)
-from .models.spectral import (
-    SpectralCorrelation,
-    create_spectral_correlation
-)
-from .models.hierarchical import (
-    HierarchicalCorrelation,
-    create_hierarchical_correlation
-)
-from .models.dynamic import (
-    DynamicCorrelation,
-    create_dynamic_correlation
-)
+from .models.stochastic import StochasticCorrelation, create_stochastic_correlation
+
+# Basic correlation models
+from .models.time_dependent import TimeDependentCorrelation
+from .models.wavelet import WaveletCorrelation, create_wavelet_correlation
 
 __all__ = [
     # Base class
-    'BaseCorrelation',
-    
+    "BaseCorrelation",
     # Basic correlation models
-    'TimeDependentCorrelation',
-    'StateDependentCorrelation',
-    'linear_state_correlation',
-    'exponential_state_correlation',
-    'RegimeSwitchingCorrelation',
-    'create_two_regime_correlation',
-    'StochasticCorrelation',
-    'create_stochastic_correlation',
-    'CopulaCorrelation',
-    'create_gaussian_copula_correlation',
-    'create_student_copula_correlation',
-    
+    "TimeDependentCorrelation",
+    "StateDependentCorrelation",
+    "linear_state_correlation",
+    "exponential_state_correlation",
+    "RegimeSwitchingCorrelation",
+    "create_two_regime_correlation",
+    "StochasticCorrelation",
+    "create_stochastic_correlation",
+    "CopulaCorrelation",
+    "create_gaussian_copula_correlation",
+    "create_student_copula_correlation",
     # Advanced correlation models
-    'NetworkCorrelation',
-    'create_network_correlation',
-    'FractalCorrelation',
-    'create_fractal_correlation',
-    'WaveletCorrelation',
-    'create_wavelet_correlation',
-    'SpectralCorrelation',
-    'create_spectral_correlation',
-    'HierarchicalCorrelation',
-    'create_hierarchical_correlation',
-    'DynamicCorrelation',
-    'create_dynamic_correlation'
-] 
+    "NetworkCorrelation",
+    "create_network_correlation",
+    "FractalCorrelation",
+    "create_fractal_correlation",
+    "WaveletCorrelation",
+    "create_wavelet_correlation",
+    "SpectralCorrelation",
+    "create_spectral_correlation",
+    "HierarchicalCorrelation",
+    "create_hierarchical_correlation",
+    "DynamicCorrelation",
+    "create_dynamic_correlation",
+]

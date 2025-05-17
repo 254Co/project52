@@ -8,26 +8,28 @@ random number generation system for better statistical properties
 and performance.
 """
 
-import numpy as np
 from typing import Optional
+
+import numpy as np
 from numpy.random import Generator
+
 
 def get_rng(seed: Optional[int] = None) -> Generator:
     """
     Create a new random number generator with an optional seed.
-    
+
     This function creates a NumPy random number generator instance
     that can be used for generating random numbers in a reproducible
     way. If a seed is provided, the sequence of random numbers will
     be deterministic.
-    
+
     Args:
         seed (Optional[int]): Seed for the random number generator.
             If None, a random seed is used.
-    
+
     Returns:
         Generator: A NumPy random number generator instance
-    
+
     Example:
         >>> rng = get_rng(42)
         >>> rng.random()

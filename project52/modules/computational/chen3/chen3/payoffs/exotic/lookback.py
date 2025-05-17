@@ -3,7 +3,9 @@
 Lookback option payoff: based on max/min path.
 """
 import numpy as np
+
 from ..base import Payoff
+
 
 class Lookback(Payoff):
     def __init__(self, call: bool = True, notional: float = 1.0):

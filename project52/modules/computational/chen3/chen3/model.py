@@ -128,62 +128,66 @@ Example Usage:
     ... )
 """
 
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Union, Callable
-from .datatypes import ModelParams, RateParams, EquityParams
+
 from chen3.correlation import (
-    TimeDependentCorrelation,
-    StateDependentCorrelation,
+    CopulaCorrelation,
     RegimeSwitchingCorrelation,
+    StateDependentCorrelation,
     StochasticCorrelation,
-    CopulaCorrelation
+    TimeDependentCorrelation,
 )
-from .utils.logging import logger
+
+from .datatypes import EquityParams, ModelParams, RateParams
 from .utils.exceptions import (
-    ValidationError,
+    CorrelationError,
     NumericalError,
     SimulationError,
-    CorrelationError
+    ValidationError,
 )
+from .utils.logging import logger
 from .utils.validation import (
     check_feller_condition,
-    validate_correlation_matrix,
     check_numerical_stability,
-    validate_time_grid
+    validate_correlation_matrix,
+    validate_time_grid,
 )
+
 
 class ChenModel:
     """
     Implementation of the three-factor Chen model for financial derivatives pricing.
-    
+
     This class serves as the main interface for the model, encapsulating all
     parameters and providing methods for simulation and pricing. The model
     combines stochastic interest rates, equity prices, and rough volatility
     to provide a comprehensive framework for pricing complex financial instruments.
-    
+
     The model is particularly well-suited for:
     - Long-dated options where interest rate risk is significant
     - Products with complex volatility dynamics
     - Instruments requiring correlation between rates and equity
     - Path-dependent options where rough volatility is important
-    
+
     Mathematical Properties:
     ----------------------
     1. Interest Rate Process:
        - Mean-reverting CIR process
        - Ensures positive rates
        - Gamma stationary distribution
-    
+
     2. Equity Process:
        - Log-normal distribution in short term
        - Stochastic volatility
        - Correlation with rates
-    
+
     3. Variance Process:
        - Mean-reverting Heston process
        - Ensures positive variance
        - Volatility clustering
-    
+
     Numerical Features:
     -----------------
     1. Monte Carlo Simulation:
@@ -191,32 +195,32 @@ class ChenModel:
        - Cholesky decomposition for correlations
        - Adaptive time stepping
        - Variance reduction techniques
-    
+
     2. Correlation Handling:
        - Support for various correlation structures
        - Dynamic correlation updates
        - Efficient matrix operations
-    
+
     Attributes:
         params (ModelParams): Complete set of model parameters including:
             - Interest rate parameters (CIR process)
             - Equity parameters (price and variance processes)
             - Correlation structure between factors
-    
+
     Example:
         >>> from chen3 import ChenModel, ModelParams
         >>> params = ModelParams(...)  # Initialize with appropriate parameters
         >>> model = ChenModel(params)
         >>> price = model.price_instrument(...)  # Price a financial instrument
     """
-    
+
     def __init__(self, params: ModelParams):
         """
         Initialize the Chen model with parameters.
-        
+
         Args:
             params: Model parameters including rate, equity, and correlation parameters
-        
+
         Raises:
             ValidationError: If parameters are invalid
             CorrelationError: If correlation structure is invalid
@@ -224,54 +228,52 @@ class ChenModel:
         self.params = params
         self._validate_parameters()
         logger.info("Chen model initialized successfully")
-    
+
     def _validate_parameters(self):
         """Validate all model parameters."""
         if self.params is None:
             raise ValidationError("Model parameters cannot be None")
-            
+
         if not isinstance(self.params, ModelParams):
             raise ValidationError("Model parameters must be an instance of ModelParams")
-            
+
         # Validate rate process parameters
         if not check_feller_condition(
             self.params.rate.kappa,
             self.params.rate.theta,
             self.params.rate.sigma,
-            "interest rate"
+            "interest rate",
         ):
             logger.warning("Interest rate process may hit zero")
-        
+
         # Validate variance process parameters
         if not check_feller_condition(
             self.params.equity.kappa_v,
             self.params.equity.theta_v,
             self.params.equity.sigma_v,
-            "variance"
+            "variance",
         ):
             logger.warning("Variance process may hit zero")
-        
+
         # Validate correlation structure
         if isinstance(self.params.correlation, np.ndarray):
             is_valid, error_msg = validate_correlation_matrix(self.params.correlation)
             if not is_valid:
                 raise CorrelationError(f"Invalid correlation matrix: {error_msg}")
-    
+
     def get_correlation_matrix(
-        self,
-        t: float = 0.0,
-        state: Optional[Dict[str, float]] = None
+        self, t: float = 0.0, state: Optional[Dict[str, float]] = None
     ) -> np.ndarray:
         """
         Get the correlation matrix at time t and state.
-        
+
         Args:
             t: Time point
             state: Current state of the processes
-        
+
         Returns:
             np.ndarray: 3x3 correlation matrix
-        
+
         Raises:
             CorrelationError: If correlation structure is invalid
         """
@@ -292,21 +294,18 @@ class ChenModel:
                 raise CorrelationError("Unsupported correlation type")
         except Exception as e:
             raise CorrelationError(f"Failed to get correlation matrix: {str(e)}")
-    
+
     def simulate_paths(
-        self,
-        n_paths: int,
-        n_steps: int,
-        dt: float
+        self, n_paths: int, n_steps: int, dt: float
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Simulate paths for the Chen model with enhanced stability checks.
-        
+
         Args:
             n_paths: Number of paths to simulate
             n_steps: Number of time steps
             dt: Time step size
-        
+
         Returns:
             Tuple of arrays containing simulated paths for rates, equity prices, and variance
         """
@@ -315,48 +314,54 @@ class ChenModel:
         r_paths = np.zeros((n_paths, n_steps + 1))
         S_paths = np.zeros((n_paths, n_steps + 1))
         v_paths = np.zeros((n_paths, n_steps + 1))
-        
+
         # Set initial values
         r_paths[:, 0] = self.params.rate.r0
         S_paths[:, 0] = self.params.equity.S0
         v_paths[:, 0] = self.params.equity.v0
-        
+
         # Generate random increments
         dW = np.random.normal(0, np.sqrt(dt), (n_paths, n_steps, 3))
-        
+
         # Simulate paths with enhanced stability
         for i in range(n_steps):
             t = time_points[i]
             corr_matrix = self.get_correlation_matrix(t)
             L = np.linalg.cholesky(corr_matrix)
-            
+
             # Transform independent increments to correlated
-            dW_corr = np.einsum('ij,kj->ki', L, dW[:, i, :])
-            
+            dW_corr = np.einsum("ij,kj->ki", L, dW[:, i, :])
+
             # Update rates (CIR process) with stability checks
-            r_paths[:, i+1] = (
-                r_paths[:, i] +
-                self.params.rate.kappa * (self.params.rate.theta - r_paths[:, i]) * dt +
-                self.params.rate.sigma * np.sqrt(np.maximum(r_paths[:, i], 0.0)) * dW_corr[:, 0]
+            r_paths[:, i + 1] = (
+                r_paths[:, i]
+                + self.params.rate.kappa * (self.params.rate.theta - r_paths[:, i]) * dt
+                + self.params.rate.sigma
+                * np.sqrt(np.maximum(r_paths[:, i], 0.0))
+                * dW_corr[:, 0]
             )
-            r_paths[:, i+1] = np.maximum(r_paths[:, i+1], 0.0)
-            
+            r_paths[:, i + 1] = np.maximum(r_paths[:, i + 1], 0.0)
+
             # Update variance (Heston process) with stability checks
-            v_paths[:, i+1] = (
-                v_paths[:, i] +
-                self.params.equity.kappa_v * (self.params.equity.theta_v - v_paths[:, i]) * dt +
-                self.params.equity.sigma_v * np.sqrt(np.maximum(v_paths[:, i], 0.0)) * dW_corr[:, 2]
+            v_paths[:, i + 1] = (
+                v_paths[:, i]
+                + self.params.equity.kappa_v
+                * (self.params.equity.theta_v - v_paths[:, i])
+                * dt
+                + self.params.equity.sigma_v
+                * np.sqrt(np.maximum(v_paths[:, i], 0.0))
+                * dW_corr[:, 2]
             )
-            v_paths[:, i+1] = np.maximum(v_paths[:, i+1], 0.0)
-            
+            v_paths[:, i + 1] = np.maximum(v_paths[:, i + 1], 0.0)
+
             # Update equity prices with stability checks
             drift = r_paths[:, i] - self.params.equity.q - 0.5 * v_paths[:, i]
             diffusion = np.sqrt(np.maximum(v_paths[:, i], 0.0))
-            S_paths[:, i+1] = S_paths[:, i] * np.exp(
+            S_paths[:, i + 1] = S_paths[:, i] * np.exp(
                 drift * dt + diffusion * dW_corr[:, 1]
             )
-            S_paths[:, i+1] = np.maximum(S_paths[:, i+1], 0.0)
-        
+            S_paths[:, i + 1] = np.maximum(S_paths[:, i + 1], 0.0)
+
         # Enhanced stability checks
         if not check_numerical_stability(
             r_paths,
@@ -364,80 +369,82 @@ class ChenModel:
             min_value=0.0,
             max_value=1.0,  # Reasonable upper bound for rates
             max_growth_rate=5.0,
-            max_volatility=2.0
+            max_volatility=2.0,
         ):
             raise NumericalError("Interest rate simulation produced unstable results")
-        
+
         if not check_numerical_stability(
             S_paths,
             name="equity prices",
             min_value=0.0,
             max_growth_rate=10.0,
-            max_volatility=5.0
+            max_volatility=5.0,
         ):
             raise NumericalError("Equity price simulation produced unstable results")
-        
+
         if not check_numerical_stability(
             v_paths,
             name="variance",
             min_value=0.0,
             max_value=1.0,  # Reasonable upper bound for variance
             max_growth_rate=5.0,
-            max_volatility=2.0
+            max_volatility=2.0,
         ):
             raise NumericalError("Variance simulation produced unstable results")
 
         # Debug: Log statistics of final equity prices
-        logger.info(f"S_paths final: mean={np.mean(S_paths[:, -1]):.4f}, min={np.min(S_paths[:, -1]):.4f}, max={np.max(S_paths[:, -1]):.4f}")
-        
+        logger.info(
+            f"S_paths final: mean={np.mean(S_paths[:, -1]):.4f}, min={np.min(S_paths[:, -1]):.4f}, max={np.max(S_paths[:, -1]):.4f}"
+        )
+
         return r_paths, S_paths, v_paths
-    
+
     def price_instrument(
         self,
         payoff_function: Callable,
         n_paths: int = 10000,
         n_steps: int = 100,
-        dt: float = 0.01
+        dt: float = 0.01,
     ) -> float:
         """
         Price a financial instrument using Monte Carlo simulation.
-        
+
         Args:
             payoff_function: Function that computes the payoff
             n_paths: Number of simulation paths
             n_steps: Number of time steps
             dt: Time step size
-        
+
         Returns:
             float: Estimated price of the instrument
-        
+
         Raises:
             PricingError: If pricing fails
         """
         try:
             # Simulate paths
             r_paths, S_paths, v_paths = self.simulate_paths(n_paths, n_steps, dt)
-            
+
             # Compute payoffs
             payoffs = payoff_function(r_paths, S_paths, v_paths)
-            
+
             # Check numerical stability of payoffs
             if not check_numerical_stability(payoffs, name="payoffs"):
                 raise NumericalError("Payoff computation produced unstable results")
-            
+
             # Compute price
             price = np.mean(payoffs)
-            
+
             # Compute standard error
             std_error = np.std(payoffs) / np.sqrt(n_paths)
-            
+
             logger.info(
                 f"Pricing completed: price = {price:.4f} ± {std_error:.4f} "
                 f"(n_paths = {n_paths}, n_steps = {n_steps})"
             )
-            
+
             return price
-            
+
         except Exception as e:
             raise PricingError(f"Pricing failed: {str(e)}")
 
@@ -447,21 +454,21 @@ class ChenModel:
         n_paths: int = 10000,
         n_steps: int = 100,
         dt: float = 0.01,
-        engine=None
+        engine=None,
     ) -> float:
         """
         Price an option using Monte Carlo simulation.
-        
+
         Args:
             option: Option to price (must have a payoff method)
             n_paths: Number of simulation paths
             n_steps: Number of time steps
             dt: Time step size
             engine: Optional pricing engine (default: standard Monte Carlo)
-            
+
         Returns:
             float: Estimated option price
-            
+
         Raises:
             ValidationError: If parameters are invalid
             NumericalError: If numerical issues occur
@@ -469,7 +476,7 @@ class ChenModel:
         try:
             # Simulate paths
             r_paths, S_paths, v_paths = self.simulate_paths(n_paths, n_steps, dt)
-            
+
             # Compute payoffs (already discounted in the payoff method)
             if engine is None:
                 # Use standard Monte Carlo
@@ -478,22 +485,18 @@ class ChenModel:
             else:
                 # Use specified engine
                 price = engine.price(option, r_paths, S_paths, v_paths)
-            
+
             # Validate result
             if not np.isfinite(price):
                 raise NumericalError("Pricing produced non-finite result")
-            
+
             return price
-            
+
         except Exception as e:
             raise NumericalError(f"Pricing failed: {str(e)}")
 
     def simulate(
-        self,
-        T: float,
-        n_steps: int,
-        n_paths: int,
-        dt: Optional[float] = None
+        self, T: float, n_steps: int, n_paths: int, dt: Optional[float] = None
     ) -> np.ndarray:
         """
         Simulate paths of the three-factor model.
@@ -515,12 +518,16 @@ class ChenModel:
         try:
             # Validate input parameters
             if n_paths < 100:
-                raise ValidationError("Number of paths must be at least 100 for reliable simulation")
+                raise ValidationError(
+                    "Number of paths must be at least 100 for reliable simulation"
+                )
             if n_steps < 10:
-                raise ValidationError("Number of time steps must be at least 10 for reliable simulation")
+                raise ValidationError(
+                    "Number of time steps must be at least 10 for reliable simulation"
+                )
             if T <= 0:
                 raise ValidationError("Time horizon must be positive")
-                
+
             if dt is None:
                 dt = T / n_steps
 
@@ -549,25 +556,44 @@ class ChenModel:
                     dW_corr[:, i] = np.dot(dW[:, i], np.linalg.cholesky(corr_matrix).T)
 
                 # Interest rate process (CIR)
-                r_paths[:, i + 1] = r_paths[:, i] + \
-                    self.params.rate.kappa * (self.params.rate.theta - r_paths[:, i]) * dt + \
-                    self.params.rate.sigma * np.sqrt(r_paths[:, i]) * dW_corr[:, i, 0]
-                r_paths[:, i + 1] = np.maximum(r_paths[:, i + 1], 0.0)  # Ensure non-negativity
+                r_paths[:, i + 1] = (
+                    r_paths[:, i]
+                    + self.params.rate.kappa
+                    * (self.params.rate.theta - r_paths[:, i])
+                    * dt
+                    + self.params.rate.sigma * np.sqrt(r_paths[:, i]) * dW_corr[:, i, 0]
+                )
+                r_paths[:, i + 1] = np.maximum(
+                    r_paths[:, i + 1], 0.0
+                )  # Ensure non-negativity
 
                 # Variance process (CIR)
-                v_paths[:, i + 1] = v_paths[:, i] + \
-                    self.params.equity.kappa_v * (self.params.equity.theta_v - v_paths[:, i]) * dt + \
-                    self.params.equity.sigma_v * np.sqrt(v_paths[:, i]) * dW_corr[:, i, 2]
-                v_paths[:, i + 1] = np.maximum(v_paths[:, i + 1], 0.0)  # Ensure non-negativity
+                v_paths[:, i + 1] = (
+                    v_paths[:, i]
+                    + self.params.equity.kappa_v
+                    * (self.params.equity.theta_v - v_paths[:, i])
+                    * dt
+                    + self.params.equity.sigma_v
+                    * np.sqrt(v_paths[:, i])
+                    * dW_corr[:, i, 2]
+                )
+                v_paths[:, i + 1] = np.maximum(
+                    v_paths[:, i + 1], 0.0
+                )  # Ensure non-negativity
 
                 # Equity price process (Heston)
                 S_paths[:, i + 1] = S_paths[:, i] * np.exp(
-                    (self.params.equity.mu - self.params.equity.q - 0.5 * v_paths[:, i]) * dt + \
-                    np.sqrt(v_paths[:, i]) * dW_corr[:, i, 1]
+                    (self.params.equity.mu - self.params.equity.q - 0.5 * v_paths[:, i])
+                    * dt
+                    + np.sqrt(v_paths[:, i]) * dW_corr[:, i, 1]
                 )
 
             # Validate results
-            if not np.all(np.isfinite(r_paths)) or not np.all(np.isfinite(S_paths)) or not np.all(np.isfinite(v_paths)):
+            if (
+                not np.all(np.isfinite(r_paths))
+                or not np.all(np.isfinite(S_paths))
+                or not np.all(np.isfinite(v_paths))
+            ):
                 raise NumericalError("Path simulation produced non-finite results")
 
             # Stack the paths into a single array
@@ -576,5 +602,6 @@ class ChenModel:
 
         except Exception as e:
             raise NumericalError(f"Path simulation failed: {str(e)}")
+
 
 Chen3Model = ChenModel

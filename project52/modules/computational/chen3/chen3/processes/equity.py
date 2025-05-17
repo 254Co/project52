@@ -23,23 +23,24 @@ where:
 """
 
 import numpy as np
+
 from .base import StateProcess
 
 
 class EquityProcess(StateProcess):
     """
     Implementation of a Heston-like equity and variance process.
-    
+
     This class implements a two-dimensional stochastic process combining:
     1. A geometric Brownian motion for the equity price
     2. A CIR process for the variance
-    
+
     The process is particularly well-suited for:
     - Modeling equity prices with stochastic volatility
     - Capturing volatility clustering effects
     - Pricing options with volatility smile
     - Simulating correlated equity and variance dynamics
-    
+
     Attributes:
         mu (float): Drift rate of the equity process
         q (float): Continuous dividend yield
@@ -47,7 +48,7 @@ class EquityProcess(StateProcess):
         theta_v (float): Long-term mean level of variance
         sigma_v (float): Volatility of variance
         v0 (float): Initial variance level
-    
+
     Example:
         >>> process = EquityProcess(
         ...     mu=0.05, q=0.02,
@@ -57,12 +58,19 @@ class EquityProcess(StateProcess):
         >>> drift = process.drift(state)
         >>> diffusion = process.diffusion(state)
     """
-    
-    def __init__(self, mu: float, q: float,
-                 kappa_v: float, theta_v: float, sigma_v: float, v0: float):
+
+    def __init__(
+        self,
+        mu: float,
+        q: float,
+        kappa_v: float,
+        theta_v: float,
+        sigma_v: float,
+        v0: float,
+    ):
         """
         Initialize the equity and variance process with specified parameters.
-        
+
         Args:
             mu (float): Drift rate of the equity process
             q (float): Continuous dividend yield
@@ -70,7 +78,7 @@ class EquityProcess(StateProcess):
             theta_v (float): Long-term mean level of variance (θ_v > 0)
             sigma_v (float): Volatility of variance (σ_v > 0)
             v0 (float): Initial variance level (v0 ≥ 0)
-        
+
         Raises:
             ValueError: If any parameter is negative or if 2κ_vθ_v < σ_v²
                       (Feller condition for non-negative variance)
@@ -85,48 +93,50 @@ class EquityProcess(StateProcess):
     def drift(self, state: np.ndarray) -> np.ndarray:
         """
         Compute the drift terms for both equity and variance processes.
-        
+
         The drift terms are:
         - Equity: (μ - q)S_t
         - Variance: κ_v(θ_v - v_t)
-        
+
         Args:
             state (np.ndarray): Current state values, shape (n_paths, 2)
                                state[:,0] = equity price (S)
                                state[:,1] = variance (v)
-        
+
         Returns:
             np.ndarray: Drift terms for both processes, shape (n_paths, 2)
                        [equity_drift, variance_drift]
         """
         # state[:,0]=S, state[:,1]=v
-        S, v = state[:,0], state[:,1]
-        return np.stack([
-            (self.mu - self.q)*S,
-            self.kappa_v*(self.theta_v - v)
-        ], axis=1)
+        S, v = state[:, 0], state[:, 1]
+        return np.stack(
+            [(self.mu - self.q) * S, self.kappa_v * (self.theta_v - v)], axis=1
+        )
 
     def diffusion(self, state: np.ndarray) -> np.ndarray:
         """
         Compute the diffusion terms for both equity and variance processes.
-        
+
         The diffusion terms are:
         - Equity: √v_t S_t
         - Variance: σ_v√v_t
-        
+
         Note: The maximum with 0 ensures non-negative variance
-        
+
         Args:
             state (np.ndarray): Current state values, shape (n_paths, 2)
                                state[:,0] = equity price (S)
                                state[:,1] = variance (v)
-        
+
         Returns:
             np.ndarray: Diffusion terms for both processes, shape (n_paths, 2)
                        [equity_diffusion, variance_diffusion]
         """
-        S, v = state[:,0], state[:,1]
-        return np.stack([
-            np.sqrt(np.maximum(v, 0.0))*S,
-            self.sigma_v*np.sqrt(np.maximum(v, 0.0))
-        ], axis=1)
+        S, v = state[:, 0], state[:, 1]
+        return np.stack(
+            [
+                np.sqrt(np.maximum(v, 0.0)) * S,
+                self.sigma_v * np.sqrt(np.maximum(v, 0.0)),
+            ],
+            axis=1,
+        )

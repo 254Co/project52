@@ -40,14 +40,17 @@ create more sophisticated models. For example:
 >>> jump_model = MertonJump(lam=0.5, mu_j=-0.1, sigma_j=0.2)
 """
 
+from .jump_diffusion import KouJump, MertonJump
+from .local_volatility import LocalVolatility
+from .regime_switching import RegimeSwitcher
 from .rough_volatility import RoughVolatility
 from .stochastic_dividend import StochasticDividend
-from .local_volatility import LocalVolatility
-from .jump_diffusion import MertonJump, KouJump
-from .regime_switching import RegimeSwitcher
 
 __all__ = [
-    "RoughVolatility", "StochasticDividend",
-    "LocalVolatility", "MertonJump", "KouJump",
-    "RegimeSwitcher"
+    "RoughVolatility",
+    "StochasticDividend",
+    "LocalVolatility",
+    "MertonJump",
+    "KouJump",
+    "RegimeSwitcher",
 ]

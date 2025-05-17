@@ -48,71 +48,71 @@ Notes:
     - Consider using variance reduction techniques for better accuracy
 """
 
-import numpy as np
 from typing import Callable
 
+import numpy as np
+
+
 def delta_pathwise(
-    paths: np.ndarray,
-    payoff: Callable[[np.ndarray], np.ndarray],
-    bump: float = 1e-4
+    paths: np.ndarray, payoff: Callable[[np.ndarray], np.ndarray], bump: float = 1e-4
 ) -> float:
     """
     Estimate delta (∂V/∂S₀) using the pathwise (bump-and-revalue) method.
-    
+
     This function perturbs the initial asset price up and down by a small amount
     (bump), revalues the payoff for each perturbed path, and computes the central
     difference to estimate the sensitivity. It assumes that the first column of
     the path array holds the asset price (S).
-    
+
     The method works by:
     1. Creating up and down bumped versions of the initial price
     2. Applying the same relative bump to all paths
     3. Revaluing the payoff for both bumped scenarios
     4. Computing the central difference approximation
-    
+
     Mathematical formulation:
         Δ ≈ (V(S₀(1+ε)) - V(S₀(1-ε))) / (2εS₀)
     where:
         - V is the option value
         - S₀ is the initial asset price
         - ε is the relative bump size
-    
+
     Args:
-        paths (np.ndarray): 
+        paths (np.ndarray):
             Simulated Monte Carlo paths with shape (n_paths, n_steps+1, n_factors)
             - First dimension: number of simulation paths
             - Second dimension: time steps (including initial value)
             - Third dimension: state factors (first is asset price)
-        payoff (Callable[[np.ndarray], np.ndarray]): 
+        payoff (Callable[[np.ndarray], np.ndarray]):
             Payoff function that maps paths to payoffs
             - Input: path array of shape (n_paths, n_steps+1, n_factors)
             - Output: array of shape (n_paths,) containing payoffs
-        bump (float, optional): 
+        bump (float, optional):
             Relative bump size for finite difference (default: 1e-4)
             - Should be small enough for accuracy
             - Should be large enough to avoid roundoff error
-    
+
     Returns:
         float: Estimated delta (∂V/∂S₀) using the pathwise method
-    
+
     Raises:
         ValueError: If paths array is empty or has incorrect shape
         TypeError: If payoff function is not callable
-    
+
     Example:
         >>> # Simulate paths for a European call option
         >>> paths = simulate_paths(n_paths=10000, n_steps=252)
-        >>> 
+        >>>
         >>> # Define the payoff function
         >>> def european_call_payoff(paths):
         ...     S = paths[:, -1, 0]  # final asset prices
         ...     K = 100.0  # strike price
         ...     return np.maximum(S - K, 0)
-        ... 
+        ...
         >>> # Compute delta
         >>> delta = delta_pathwise(paths, european_call_payoff, bump=1e-4)
         >>> print(f"Estimated delta: {delta:.4f}")
-    
+
     Notes:
         - The method does not require rerunning the full simulation
         - Works for any payoff function that depends on the path array
@@ -122,10 +122,10 @@ def delta_pathwise(
         - The method assumes the payoff is differentiable with respect to S₀
     """
     # bump initial stock in first column
-    paths_up   = paths.copy()
+    paths_up = paths.copy()
     paths_down = paths.copy()
-    paths_up[:, 0, 0]   *= (1 + bump)
-    paths_down[:, 0, 0] *= (1 - bump)
+    paths_up[:, 0, 0] *= 1 + bump
+    paths_down[:, 0, 0] *= 1 - bump
 
     # revalue payoff (no need to rerun full sim; static bump)
     pu = payoff(paths_up)

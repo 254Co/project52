@@ -56,58 +56,60 @@ Notes:
     - Implementation requires careful handling of numerical stability
 """
 
-import numpy as np
 from typing import Callable, Tuple
+
+import numpy as np
+
 
 def vega_likelihood_ratio(
     paths: np.ndarray,
     payoff: Callable[[np.ndarray], np.ndarray],
-    dw_s: np.ndarray = None
+    dw_s: np.ndarray = None,
 ) -> float:
     """
     Estimate vega (∂V/∂σ) using the likelihood-ratio (score-function) method.
-    
+
     This function estimates the sensitivity of the option value to volatility by
     reweighting the payoff with the derivative of the log-likelihood of the
     simulated paths with respect to σ. It requires access to the Brownian
     increments (dW) used in the simulation of the S-factor.
-    
+
     The method works by:
     1. Computing the score function (derivative of log-likelihood)
     2. Evaluating the payoff for each path
     3. Multiplying the payoff by the score function
     4. Taking the expectation (mean) of the weighted payoffs
-    
+
     Mathematical formulation:
         ∂V/∂σ = E[V(S) * ∂log(L)/∂σ]
         where:
         - V(S) is the option payoff
         - L is the likelihood function
         - ∂log(L)/∂σ is the score function
-    
+
     Args:
-        paths (np.ndarray): 
+        paths (np.ndarray):
             Simulated Monte Carlo paths with shape (n_paths, n_steps+1, n_factors)
             - First dimension: number of simulation paths
             - Second dimension: time steps (including initial value)
             - Third dimension: state factors (first is asset price)
-        payoff (Callable[[np.ndarray], np.ndarray]): 
+        payoff (Callable[[np.ndarray], np.ndarray]):
             Payoff function that maps paths to payoffs
             - Input: path array of shape (n_paths, n_steps+1, n_factors)
             - Output: array of shape (n_paths,) containing payoffs
-        dw_s (np.ndarray, optional): 
+        dw_s (np.ndarray, optional):
             Brownian increments for the S-factor with shape (n_paths, n_steps)
             - Required for computing the score function
             - If None, raises NotImplementedError
-    
+
     Returns:
         float: Estimated vega (∂V/∂σ) using the likelihood-ratio method
-    
+
     Raises:
         NotImplementedError: If dw_s is not provided
         ValueError: If paths array is empty or has incorrect shape
         TypeError: If payoff function is not callable
-    
+
     Example:
         >>> # Simulate paths and store Brownian increments
         >>> def simulate_paths_with_dw(n_paths, n_steps):
@@ -127,7 +129,7 @@ def vega_likelihood_ratio(
         >>> paths, dw_s = simulate_paths_with_dw(n_paths=10000, n_steps=252)
         >>> vega = vega_likelihood_ratio(paths, european_call_payoff, dw_s)
         >>> print(f"Estimated vega: {vega:.4f}")
-    
+
     Notes:
         - The method requires storing Brownian increments during simulation
         - The score function must be computed correctly for the specific model

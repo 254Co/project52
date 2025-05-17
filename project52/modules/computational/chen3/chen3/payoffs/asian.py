@@ -1,7 +1,9 @@
 # File: chen3/payoffs/asian.py
 """Arithmetic-average Asian option payoff."""
 import numpy as np
+
 from .base import Payoff
+
 
 class Asian(Payoff):
     def __init__(self, strike: float, call: bool = True):

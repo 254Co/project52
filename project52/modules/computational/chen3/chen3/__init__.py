@@ -155,17 +155,11 @@ For more detailed documentation and examples, see the individual module
 docstrings and the examples directory.
 """
 
-from .model import Chen3Model
-from .datatypes import ModelParams, RateParams, EquityParams
 from .config import Settings
+from .datatypes import EquityParams, ModelParams, RateParams
+from .model import Chen3Model
 
-__version__ = '1.0.0'
-__author__ = 'Chen3 Development Team'
+__version__ = "1.0.0"
+__author__ = "Chen3 Development Team"
 
-__all__ = [
-    'Chen3Model',
-    'ModelParams',
-    'RateParams',
-    'EquityParams',
-    'Settings'
-]
+__all__ = ["Chen3Model", "ModelParams", "RateParams", "EquityParams", "Settings"]

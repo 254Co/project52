@@ -10,25 +10,27 @@ Greeks calculation methods, including:
 - Control variate variance reduction
 """
 
+from typing import Any, Callable, Dict, Optional, Union
+
 import numpy as np
-from typing import Callable, Optional, Union, Dict, Any
+
 from chen3.greeks import (
-    delta_pathwise,
-    vega_likelihood_ratio,
-    greeks_aad,
     adjoint_control_variate,
+    delta_pathwise,
+    greeks_aad,
+    vega_likelihood_ratio,
 )
 
 
 class MonteCarloPricer:
     """
     Monte Carlo pricer with support for Greeks calculation.
-    
+
     This class provides a flexible Monte Carlo pricer that can compute
     both option prices and Greeks using various methods. It supports
     different variance reduction techniques and Greeks calculation
     approaches.
-    
+
     Attributes:
         payoff (Callable): Function to compute option payoffs
         discount_curve (Callable): Function to compute discount factors
@@ -38,7 +40,7 @@ class MonteCarloPricer:
         use_aad (bool): Whether to use adjoint algorithmic differentiation
         cv_term (float): Known expectation of control variate
     """
-    
+
     def __init__(
         self,
         payoff: Callable[[np.ndarray], np.ndarray],
@@ -51,7 +53,7 @@ class MonteCarloPricer:
     ):
         """
         Initialize the Monte Carlo pricer.
-        
+
         Args:
             payoff (Callable[[np.ndarray], np.ndarray]): Function that computes
                 option payoffs from simulated paths. Takes an array of paths
@@ -64,7 +66,7 @@ class MonteCarloPricer:
             use_cv (bool): Whether to enable control variate variance reduction
             use_aad (bool): Whether to enable adjoint algorithmic differentiation
             cv_term (float): Known expectation of control variate (if used)
-        
+
         Note:
             The payoff function should be vectorized to handle arrays of paths
             efficiently. The discount curve should be a function of time that
@@ -78,14 +80,10 @@ class MonteCarloPricer:
         self.use_aad = use_aad
         self.cv_term = cv_term
 
-    def price(
-        self,
-        paths: np.ndarray,
-        greek: Optional[str] = None
-    ) -> float:
+    def price(self, paths: np.ndarray, greek: Optional[str] = None) -> float:
         """
         Price the option or compute a Greek via Monte Carlo.
-        
+
         This method can compute either the option price or various Greeks
         using different methods:
         - None: Standard Monte Carlo pricing
@@ -93,18 +91,18 @@ class MonteCarloPricer:
         - 'vega': Likelihood ratio method
         - 'aad': Adjoint algorithmic differentiation
         - 'cv': Control variate method
-        
+
         Args:
             paths (np.ndarray): Simulated paths array
             greek (Optional[str]): Which Greek to compute, or None for price
-        
+
         Returns:
             float: Option price or Greek value
-        
+
         Raises:
             ValueError: If an unsupported Greek is requested or if the
                 required feature (AAD or control variate) is not enabled
-        
+
         Note:
             The paths array should have shape (n_paths, n_steps) for
             standard pricing, or (n_paths, n_steps, n_factors) for
@@ -116,13 +114,13 @@ class MonteCarloPricer:
             df = self.discount_curve(T)
             return float(np.mean(payoffs) * df)
 
-        if greek == 'delta':
+        if greek == "delta":
             return delta_pathwise(paths, self.payoff)
-        if greek == 'vega':
+        if greek == "vega":
             return vega_likelihood_ratio(paths, self.payoff)
-        if greek == 'aad' and self.use_aad:
+        if greek == "aad" and self.use_aad:
             return greeks_aad(paths, self.payoff)
-        if greek == 'cv' and self.use_cv:
+        if greek == "cv" and self.use_cv:
             return adjoint_control_variate(paths, self.payoff, self.cv_term)
 
         raise ValueError(f"Unsupported greek '{greek}' or feature not enabled.")

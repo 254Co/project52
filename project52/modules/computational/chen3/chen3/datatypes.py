@@ -80,44 +80,48 @@ Example Usage:
     ... )
 """
 
-from typing import Union, Optional
+from typing import Optional, Union
+
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
+
 from chen3.correlation import (
-    TimeDependentCorrelation,
-    StateDependentCorrelation,
+    CopulaCorrelation,
     RegimeSwitchingCorrelation,
+    StateDependentCorrelation,
     StochasticCorrelation,
-    CopulaCorrelation
+    TimeDependentCorrelation,
 )
+
 from .utils.logging import logger
+
 
 class RateParams(BaseModel):
     """
     Parameters for the Cox-Ingersoll-Ross (CIR) interest rate process.
-    
+
     The CIR process follows the SDE:
         dr_t = κ(θ - r_t)dt + σ√r_t dW_t
-    
+
     This process ensures that interest rates remain positive and exhibit
     mean reversion, making it suitable for modeling short-term interest rates.
-    
+
     Mathematical Properties:
     ----------------------
     1. Mean Reversion:
        - The process reverts to θ at speed κ
        - Higher κ means faster mean reversion
-    
+
     2. Volatility:
        - The volatility term σ√r_t ensures that:
          * Volatility increases with the level of rates
          * Rates cannot become negative
-    
+
     3. Stationary Distribution:
        - The process has a gamma stationary distribution
        - Mean: θ
        - Variance: θσ²/(2κ)
-    
+
     Attributes:
         kappa (float): Mean reversion speed of the interest rate
                       Higher values indicate faster mean reversion
@@ -131,7 +135,7 @@ class RateParams(BaseModel):
         r0 (float): Initial interest rate level
                    Starting point for the simulation
                    Should be positive
-    
+
     Example:
         >>> rate_params = RateParams(
         ...     kappa=0.1,    # Moderate mean reversion
@@ -140,78 +144,68 @@ class RateParams(BaseModel):
         ...     r0=0.03       # Start at 3%
         ... )
     """
-    kappa: float = Field(
-        gt=0,
-        description="Mean reversion speed of the interest rate"
-    )
-    theta: float = Field(
-        gt=0,
-        description="Long-term mean level of the interest rate"
-    )
-    sigma: float = Field(
-        gt=0,
-        description="Volatility of the interest rate process"
-    )
-    r0: float = Field(
-        gt=0,
-        description="Initial interest rate level"
-    )
 
-    @field_validator('kappa')
+    kappa: float = Field(gt=0, description="Mean reversion speed of the interest rate")
+    theta: float = Field(gt=0, description="Long-term mean level of the interest rate")
+    sigma: float = Field(gt=0, description="Volatility of the interest rate process")
+    r0: float = Field(gt=0, description="Initial interest rate level")
+
+    @field_validator("kappa")
     def validate_kappa(cls, v):
         if v <= 0:
             raise ValueError("Mean reversion speed must be positive")
         return v
 
-    @field_validator('theta')
+    @field_validator("theta")
     def validate_theta(cls, v):
         if v <= 0:
             raise ValueError("Long-term mean must be positive")
         return v
 
-    @field_validator('sigma')
+    @field_validator("sigma")
     def validate_sigma(cls, v, values):
         if v <= 0:
             raise ValueError("Volatility must be positive")
-        kappa = values.data.get('kappa')
-        theta = values.data.get('theta')
+        kappa = values.data.get("kappa")
+        theta = values.data.get("theta")
         if kappa is not None and theta is not None:
             if 2 * kappa * theta <= v**2:
                 raise ValueError("Feller condition violated: 2κθ ≤ σ²")
         return v
 
-    @field_validator('r0')
+    @field_validator("r0")
     def validate_r0(cls, v):
         if v < 0:
             raise ValueError("Initial rate must be non-negative")
         return v
 
+
 class EquityParams(BaseModel):
     """
     Parameters for the equity and variance processes.
-    
+
     The equity process follows:
         dS_t = (r_t - q)S_t dt + √v_t S_t dW^S_t
     The variance process follows:
         dv_t = κ_v(θ_v - v_t)dt + σ_v√v_t dW^v_t
-    
+
     This specification combines:
     1. A geometric Brownian motion for the equity price
     2. A Heston-type stochastic volatility process
     3. Correlation with the interest rate process
-    
+
     Mathematical Properties:
     ----------------------
     1. Equity Process:
        - Log-normal distribution in the short term
        - Drift adjusted for risk-free rate and dividends
        - Volatility driven by the variance process
-    
+
     2. Variance Process:
        - Mean-reverting process
        - Ensures positive variance
        - Allows for volatility clustering
-    
+
     Attributes:
         mu (float): Drift rate of the equity process
                    Typically set to risk-free rate in risk-neutral measure
@@ -234,7 +228,7 @@ class EquityParams(BaseModel):
         sigma_v (float): Volatility of the variance process
                         Controls the magnitude of volatility fluctuations
                         Typical range: 0.1 to 0.5
-    
+
     Example:
         >>> equity_params = EquityParams(
         ...     mu=0.05,      # 5% drift
@@ -246,113 +240,97 @@ class EquityParams(BaseModel):
         ...     sigma_v=0.3   # 30% vol of vol
         ... )
     """
-    mu: float = Field(
-        description="Drift rate of the equity process"
-    )
-    q: float = Field(
-        ge=0,
-        description="Continuous dividend yield"
-    )
-    S0: float = Field(
-        gt=0,
-        description="Initial stock price"
-    )
-    v0: float = Field(
-        gt=0,
-        description="Initial variance level"
-    )
-    kappa_v: float = Field(
-        gt=0,
-        description="Mean reversion speed of the variance process"
-    )
-    theta_v: float = Field(
-        gt=0,
-        description="Long-term mean level of the variance"
-    )
-    sigma_v: float = Field(
-        gt=0,
-        description="Volatility of the variance process"
-    )
 
-    @field_validator('S0')
+    mu: float = Field(description="Drift rate of the equity process")
+    q: float = Field(ge=0, description="Continuous dividend yield")
+    S0: float = Field(gt=0, description="Initial stock price")
+    v0: float = Field(gt=0, description="Initial variance level")
+    kappa_v: float = Field(
+        gt=0, description="Mean reversion speed of the variance process"
+    )
+    theta_v: float = Field(gt=0, description="Long-term mean level of the variance")
+    sigma_v: float = Field(gt=0, description="Volatility of the variance process")
+
+    @field_validator("S0")
     def validate_S0(cls, v):
         if v <= 0:
             raise ValueError("Initial stock price must be positive")
         return v
 
-    @field_validator('v0')
+    @field_validator("v0")
     def validate_v0(cls, v):
         if v <= 0:
             raise ValueError("Initial variance must be positive")
         return v
 
-    @field_validator('kappa_v')
+    @field_validator("kappa_v")
     def validate_kappa_v(cls, v):
         if v <= 0:
             raise ValueError("Variance mean reversion speed must be positive")
         return v
 
-    @field_validator('theta_v')
+    @field_validator("theta_v")
     def validate_theta_v(cls, v):
         if v <= 0:
             raise ValueError("Variance long-term mean must be positive")
         return v
 
-    @field_validator('sigma_v')
+    @field_validator("sigma_v")
     def validate_sigma_v(cls, v, values):
         if v <= 0:
             raise ValueError("Variance volatility must be positive")
-        kappa_v = values.data.get('kappa_v')
-        theta_v = values.data.get('theta_v')
+        kappa_v = values.data.get("kappa_v")
+        theta_v = values.data.get("theta_v")
         if kappa_v is not None and theta_v is not None:
             if 2 * kappa_v * theta_v <= v**2:
                 raise ValueError("Feller condition violated: 2κ_vθ_v ≤ σ_v²")
         return v
 
-    @field_validator('q')
+    @field_validator("q")
     def validate_q(cls, v):
         if v < 0:
             raise ValueError("Dividend yield must be non-negative")
         return v
 
+
 class ModelParams(BaseModel):
     """
     Container for all model parameters including correlations.
-    
+
     This class combines the interest rate and equity parameters with their
     correlation structure to form a complete model specification.
-    
+
     The correlation structure can be one of several types:
     1. Constant Correlation:
        - Simple 3x3 correlation matrix
        - Fixed throughout the simulation
        - Must be positive definite
-    
+
     2. Time-Dependent Correlation:
        - Correlations vary with time
        - Interpolated between specified time points
        - Useful for term structure effects
-    
+
     3. State-Dependent Correlation:
        - Correlations depend on current state
        - Can capture regime effects
        - Flexible functional form
-    
+
     4. Regime-Switching Correlation:
        - Discrete correlation regimes
        - Markov chain transitions
        - Captures market regime changes
-    
+
     5. Stochastic Correlation:
        - Continuous correlation process
        - Mean-reverting dynamics
        - Similar to Heston model
-    
+
     6. Copula-Based Correlation:
        - Flexible dependency structure
        - Can capture tail dependencies
        - Various copula families available
-    
+
     Attributes:
         rate (RateParams): Parameters for the interest rate process
         equity (EquityParams): Parameters for the equity and variance processes
@@ -365,7 +343,7 @@ class ModelParams(BaseModel):
             - RegimeSwitchingCorrelation: Regime-switching correlations
             - StochasticCorrelation: Stochastic correlation process
             - CopulaCorrelation: Copula-based correlation structure
-    
+
     Example:
         >>> from chen3.correlation import TimeDependentCorrelation
         >>> import numpy as np
@@ -395,6 +373,7 @@ class ModelParams(BaseModel):
         ...     correlation=time_corr
         ... )
     """
+
     rate: RateParams
     equity: EquityParams
     correlation: Union[
@@ -403,10 +382,10 @@ class ModelParams(BaseModel):
         StateDependentCorrelation,
         RegimeSwitchingCorrelation,
         StochasticCorrelation,
-        CopulaCorrelation
+        CopulaCorrelation,
     ]
 
-    @field_validator('correlation')
+    @field_validator("correlation")
     def validate_correlation(cls, v):
         """Validate the correlation structure."""
         if isinstance(v, np.ndarray):
@@ -420,6 +399,6 @@ class ModelParams(BaseModel):
 
     class Config:
         """Pydantic model configuration."""
+
         arbitrary_types_allowed = True
         validate_assignment = True
-

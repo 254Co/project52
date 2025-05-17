@@ -5,17 +5,21 @@ This module provides the AdaptiveTimeStepper class for adaptive time stepping
 in numerical schemes for stochastic differential equations.
 """
 
-import numpy as np
-from typing import Callable, Optional, Tuple
 from dataclasses import dataclass
+from typing import Callable, Optional, Tuple
+
+import numpy as np
+
 
 @dataclass
 class AdaptiveStepResult:
     """Result of an adaptive time step."""
+
     success: bool
     dt: float
     error: float
     state: np.ndarray
+
 
 class AdaptiveTimeStepper:
     """
@@ -41,7 +45,7 @@ class AdaptiveTimeStepper:
         error_tolerance: float = 1e-4,
         safety_factor: float = 0.9,
         min_dt: float = 1e-6,
-        max_dt: float = 1.0
+        max_dt: float = 1.0,
     ):
         """
         Initialize the adaptive time stepper.
@@ -62,11 +66,7 @@ class AdaptiveTimeStepper:
         self.max_dt = max_dt
 
     def step(
-        self,
-        t: float,
-        state: np.ndarray,
-        step_function: Callable,
-        dt: float
+        self, t: float, state: np.ndarray, step_function: Callable, dt: float
     ) -> AdaptiveStepResult:
         """
         Perform an adaptive time step.
@@ -84,25 +84,25 @@ class AdaptiveTimeStepper:
         try:
             new_state = step_function(t, state, dt)
             error = np.linalg.norm(new_state - state) / np.linalg.norm(state)
-            
+
             if error <= self.error_tolerance:
                 # Step successful, adjust dt for next step
                 new_dt = min(
                     self.max_dt,
-                    dt * self.safety_factor * (self.error_tolerance / error) ** 0.5
+                    dt * self.safety_factor * (self.error_tolerance / error) ** 0.5,
                 )
                 return AdaptiveStepResult(True, new_dt, error, new_state)
             else:
                 # Step failed, reduce dt and retry
                 new_dt = max(
                     self.min_dt,
-                    dt * self.safety_factor * (self.error_tolerance / error) ** 0.5
+                    dt * self.safety_factor * (self.error_tolerance / error) ** 0.5,
                 )
                 if new_dt < self.min_dt:
                     return AdaptiveStepResult(False, dt, error, state)
                 return self.step(t, state, step_function, new_dt)
         except Exception as e:
-            return AdaptiveStepResult(False, dt, float('inf'), state)
+            return AdaptiveStepResult(False, dt, float("inf"), state)
 
     def integrate(
         self,
@@ -110,7 +110,7 @@ class AdaptiveTimeStepper:
         t1: float,
         state0: np.ndarray,
         step_function: Callable,
-        dt0: Optional[float] = None
+        dt0: Optional[float] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Integrate the system from t0 to t1 using adaptive time stepping.
@@ -127,27 +127,27 @@ class AdaptiveTimeStepper:
         """
         if dt0 is None:
             dt0 = (t1 - t0) / self.min_steps
-        
+
         times = [t0]
         states = [state0]
         t = t0
         state = state0
         dt = dt0
-        
+
         while t < t1:
             result = self.step(t, state, step_function, dt)
-            
+
             if not result.success:
                 raise RuntimeError("Adaptive time stepping failed")
-            
+
             t += dt
             state = result.state
             dt = result.dt
-            
+
             times.append(t)
             states.append(state)
-            
+
             if len(times) > self.max_steps:
                 raise RuntimeError("Maximum number of steps exceeded")
-        
-        return np.array(times), np.array(states) 
+
+        return np.array(times), np.array(states)
