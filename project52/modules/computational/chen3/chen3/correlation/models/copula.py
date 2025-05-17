@@ -64,7 +64,7 @@ class CopulaCorrelation(BaseCorrelation):
         name: str = "CopulaCorrelation",
     ):
         """
-        Initialize copula correlation.
+        Initialize copula-based correlation.
 
         Args:
             copula_type: Type of copula function
@@ -76,13 +76,18 @@ class CopulaCorrelation(BaseCorrelation):
         Raises:
             CorrelationValidationError: If initialization fails
         """
+        self.copula_type = copula_type
+        self.correlation_matrix = correlation_matrix
+        self._copula_params = copula_params or {}
         super().__init__(n_factors=n_factors, name=name)
-        self.copula_type = copula_type.lower()
-        self.correlation_matrix = np.asarray(correlation_matrix)
-        self.copula_params = copula_params or {}
         self._validate_initialization()
         self._setup_copula()
         logger.debug(f"Initialized {self.name} with {n_factors} factors")
+
+    @property
+    def copula_params(self) -> Dict[str, float]:
+        """Get the copula parameters."""
+        return self._copula_params
 
     def _validate_initialization(self):
         """
@@ -103,27 +108,27 @@ class CopulaCorrelation(BaseCorrelation):
 
         # Validate copula parameters
         if self.copula_type == "student":
-            if "df" not in self.copula_params:
+            if "df" not in self._copula_params:
                 raise CorrelationValidationError(
                     "Student's t copula requires degrees of freedom parameter 'df'"
                 )
-            if self.copula_params["df"] <= 2:
+            if self._copula_params["df"] <= 2:
                 raise CorrelationValidationError(
                     "Degrees of freedom must be greater than 2"
                 )
         elif self.copula_type == "clayton":
-            if "theta" not in self.copula_params:
+            if "theta" not in self._copula_params:
                 raise CorrelationValidationError(
                     "Clayton copula requires theta parameter"
                 )
-            if self.copula_params["theta"] <= 0:
+            if self._copula_params["theta"] <= 0:
                 raise CorrelationValidationError("Theta must be positive")
         elif self.copula_type == "gumbel":
-            if "theta" not in self.copula_params:
+            if "theta" not in self._copula_params:
                 raise CorrelationValidationError(
                     "Gumbel copula requires theta parameter"
                 )
-            if self.copula_params["theta"] < 1:
+            if self._copula_params["theta"] < 1:
                 raise CorrelationValidationError("Theta must be at least 1")
 
     def _setup_copula(self):
@@ -137,7 +142,7 @@ class CopulaCorrelation(BaseCorrelation):
         elif self.copula_type == "gumbel":
             self._copula_func = self._gumbel_copula
         else:  # custom
-            self._copula_func = self.copula_params.get("function")
+            self._copula_func = self._copula_params.get("function")
             if not callable(self._copula_func):
                 raise CorrelationValidationError(
                     "Custom copula requires a callable function"
@@ -169,9 +174,9 @@ class CopulaCorrelation(BaseCorrelation):
             Copula value
         """
         # Transform to t
-        x = t.ppf(u, df=self.copula_params["df"])
+        x = t.ppf(u, df=self._copula_params["df"])
         # Compute multivariate t CDF
-        return multivariate_t.cdf(x, df=self.copula_params["df"], shape=self.correlation_matrix)
+        return multivariate_t.cdf(x, df=self._copula_params["df"], shape=self.correlation_matrix)
 
     def _clayton_copula(self, u: np.ndarray) -> float:
         """
@@ -183,7 +188,7 @@ class CopulaCorrelation(BaseCorrelation):
         Returns:
             Copula value
         """
-        theta = self.copula_params["theta"]
+        theta = self._copula_params["theta"]
         return (np.sum(u ** (-theta)) - len(u) + 1) ** (-1 / theta)
 
     def _gumbel_copula(self, u: np.ndarray) -> float:
@@ -196,7 +201,7 @@ class CopulaCorrelation(BaseCorrelation):
         Returns:
             Copula value
         """
-        theta = self.copula_params["theta"]
+        theta = self._copula_params["theta"]
         return np.exp(-(np.sum((-np.log(u)) ** theta)) ** (1 / theta))
 
     def get_correlation_matrix(
@@ -233,7 +238,7 @@ class CopulaCorrelation(BaseCorrelation):
             f"{self.__class__.__name__}("
             f"copula_type='{self.copula_type}', "
             f"correlation_matrix={self.correlation_matrix}, "
-            f"copula_params={self.copula_params}, "
+            f"copula_params={self._copula_params}, "
             f"n_factors={self.n_factors}, "
             f"name='{self.name}')"
         )

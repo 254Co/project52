@@ -18,24 +18,20 @@ class StochasticCorrelation(BaseCorrelation):
     """
     Stochastic correlation structure.
 
-    This class implements correlations that evolve according to stochastic
-    processes, similar to the Heston model for volatility.
+    This class implements correlations that evolve stochastically over time,
+    following a mean-reverting process similar to the Heston model.
 
     Mathematical Formulation:
     ----------------------
-    The correlation matrix elements evolve according to:
+    The correlation matrix ρ(t) evolves according to:
 
-    dρ_ij = κ_ij(θ_ij - ρ_ij)dt + σ_ij√(1 - ρ_ij²)dW_ij
+    dρ_ij(t) = κ_ij(θ_ij - ρ_ij(t))dt + σ_ij√(1 - ρ_ij(t)²)dW_ij(t)
 
     where:
-    - ρ_ij: Correlation between factors i and j
     - κ_ij: Mean reversion speed
-    - θ_ij: Long-term mean
+    - θ_ij: Long-term mean correlation
     - σ_ij: Volatility of correlation
     - W_ij: Brownian motion
-
-    The process ensures that correlations stay in [-1, 1] and exhibit
-    mean reversion.
 
     Attributes:
         mean_reversion (np.ndarray): Mean reversion speeds
@@ -69,11 +65,11 @@ class StochasticCorrelation(BaseCorrelation):
         Raises:
             CorrelationValidationError: If initialization fails
         """
+        self.mean_reversion = mean_reversion
+        self.long_term_mean = long_term_mean
+        self.volatility = volatility
+        self.initial_corr = initial_corr
         super().__init__(n_factors=n_factors, name=name)
-        self.mean_reversion = np.asarray(mean_reversion)
-        self.long_term_mean = np.asarray(long_term_mean)
-        self.volatility = np.asarray(volatility)
-        self.initial_corr = np.asarray(initial_corr)
         self._validate_initialization()
         logger.debug(f"Initialized {self.name} with {n_factors} factors")
 

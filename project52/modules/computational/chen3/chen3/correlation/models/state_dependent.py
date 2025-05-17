@@ -57,9 +57,9 @@ class StateDependentCorrelation(BaseCorrelation):
         Raises:
             CorrelationValidationError: If initialization fails
         """
-        super().__init__(n_factors=n_factors, name=name)
         self.correlation_function = correlation_function
         self.default_state = default_state
+        super().__init__(n_factors=n_factors, name=name)
         self._validate_initialization()
         logger.debug(f"Initialized {self.name} with {n_factors} factors")
 
@@ -145,9 +145,9 @@ def linear_state_correlation(state: Dict[str, float]) -> np.ndarray:
     corr = np.array([[1.0, 0.5, 0.3], [0.5, 1.0, 0.2], [0.3, 0.2, 1.0]])
 
     # Adjust correlations based on state
-    corr[0, 1] = corr[1, 0] = 0.5 + 0.1 * r  # rate-equity correlation
-    corr[0, 2] = corr[2, 0] = 0.3 + 0.05 * v  # rate-variance correlation
-    corr[1, 2] = corr[2, 1] = 0.2 + 0.15 * S  # equity-variance correlation
+    corr[0, 1] = corr[1, 0] = np.clip(0.5 + 0.05 * r, -0.8, 0.8)  # rate-equity correlation
+    corr[0, 2] = corr[2, 0] = np.clip(0.3 + 0.02 * v, -0.8, 0.8)  # rate-variance correlation
+    corr[1, 2] = corr[2, 1] = np.clip(0.2 + 0.07 * S, -0.8, 0.8)  # equity-variance correlation
 
     return corr
 
@@ -170,8 +170,8 @@ def exponential_state_correlation(state: Dict[str, float]) -> np.ndarray:
     corr = np.array([[1.0, 0.5, 0.3], [0.5, 1.0, 0.2], [0.3, 0.2, 1.0]])
 
     # Adjust correlations based on state
-    corr[0, 1] = corr[1, 0] = 0.5 * np.exp(0.1 * r)  # rate-equity correlation
-    corr[0, 2] = corr[2, 0] = 0.3 * np.exp(0.05 * v)  # rate-variance correlation
-    corr[1, 2] = corr[2, 1] = 0.2 * np.exp(0.15 * S)  # equity-variance correlation
+    corr[0, 1] = corr[1, 0] = np.clip(0.5 * np.exp(0.05 * r), -0.8, 0.8)  # rate-equity correlation
+    corr[0, 2] = corr[2, 0] = np.clip(0.3 * np.exp(0.02 * v), -0.8, 0.8)  # rate-variance correlation
+    corr[1, 2] = corr[2, 1] = np.clip(0.2 * np.exp(0.07 * S), -0.8, 0.8)  # equity-variance correlation
 
     return corr

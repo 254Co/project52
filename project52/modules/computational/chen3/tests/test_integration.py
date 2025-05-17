@@ -129,24 +129,37 @@ def test_correlation_integration():
 
     # State-dependent correlation
     def corr_func(state):
-        r, S, v = state
+        r, S, v = state["r"], state["S"], state["v"]
         return np.array([[1.0, 0.5, 0.3], [0.5, 1.0, 0.2], [0.3, 0.2, 1.0]])
 
-    state_corr = StateDependentCorrelation(corr_func)
+    state_corr = StateDependentCorrelation(
+        correlation_function=corr_func,
+        default_state={"r": 0.03, "S": 100.0, "v": 0.04}
+    )
 
     # Regime-switching correlation
-    regimes = {
-        "low_vol": np.array([[1.0, 0.3, 0.2], [0.3, 1.0, 0.1], [0.2, 0.1, 1.0]]),
-        "high_vol": np.array([[1.0, 0.7, 0.5], [0.7, 1.0, 0.4], [0.5, 0.4, 1.0]]),
-    }
-    transition_probs = {
-        "low_vol": {"low_vol": 0.8, "high_vol": 0.2},
-        "high_vol": {"low_vol": 0.3, "high_vol": 0.7},
-    }
-    regime_corr = RegimeSwitchingCorrelation(regimes, transition_probs)
+    correlation_matrices = [
+        np.array([[1.0, 0.3, 0.2], [0.3, 1.0, 0.1], [0.2, 0.1, 1.0]]),
+        np.array([[1.0, 0.7, 0.5], [0.7, 1.0, 0.4], [0.5, 0.4, 1.0]])
+    ]
+    transition_rates = np.array([[-0.2, 0.2], [0.3, -0.3]])
+    regime_corr = RegimeSwitchingCorrelation(
+        correlation_matrices=correlation_matrices,
+        transition_rates=transition_rates,
+        initial_regime=0
+    )
 
     # Stochastic correlation
-    stoch_corr = StochasticCorrelation(kappa=2.0, theta=0.5, sigma=0.2, rho0=0.3)
+    mean_reversion = np.array([[0.0, 2.0, 2.0], [2.0, 0.0, 2.0], [2.0, 2.0, 0.0]])
+    long_term_mean = np.array([[1.0, 0.5, 0.5], [0.5, 1.0, 0.5], [0.5, 0.5, 1.0]])
+    volatility = np.array([[0.0, 0.2, 0.2], [0.2, 0.0, 0.2], [0.2, 0.2, 0.0]])
+    initial_corr = np.array([[1.0, 0.3, 0.3], [0.3, 1.0, 0.3], [0.3, 0.3, 1.0]])
+    stoch_corr = StochasticCorrelation(
+        mean_reversion=mean_reversion,
+        long_term_mean=long_term_mean,
+        volatility=volatility,
+        initial_corr=initial_corr,
+    )
 
     # Test each correlation structure
     correlations = [time_corr, state_corr, regime_corr, stoch_corr]

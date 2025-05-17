@@ -83,7 +83,7 @@ Example Usage:
 from typing import Optional, Union
 
 import numpy as np
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ValidationError
 
 from chen3.correlation import (
     CopulaCorrelation,
@@ -150,34 +150,80 @@ class RateParams(BaseModel):
     sigma: float = Field(gt=0, description="Volatility of the interest rate process")
     r0: float = Field(gt=0, description="Initial interest rate level")
 
+    @property
+    def feller_condition_satisfied(self) -> bool:
+        """Check if the Feller condition is satisfied: 2κθ > σ²."""
+        return 2 * self.kappa * self.theta > self.sigma**2
+
+    @property
+    def mean_reversion_time(self) -> float:
+        """Time scale for mean reversion: 1/κ."""
+        return 1.0 / self.kappa
+
+    @property
+    def volatility_scale(self) -> float:
+        """Scale of volatility in the stationary distribution: σ/√(2κ)."""
+        return self.sigma / np.sqrt(2 * self.kappa)
+
     @field_validator("kappa")
     def validate_kappa(cls, v):
         if v <= 0:
-            raise ValueError("Mean reversion speed must be positive")
+            raise ValidationError("Mean reversion speed must be positive")
+        if v > 10.0:  # Reasonable upper bound
+            raise ValidationError("Mean reversion speed seems too high")
         return v
 
     @field_validator("theta")
     def validate_theta(cls, v):
         if v <= 0:
-            raise ValueError("Long-term mean must be positive")
+            raise ValidationError("Long-term mean must be positive")
+        if v > 0.5:  # Reasonable upper bound for interest rates
+            raise ValidationError("Long-term mean seems too high")
         return v
 
     @field_validator("sigma")
     def validate_sigma(cls, v, values):
         if v <= 0:
-            raise ValueError("Volatility must be positive")
+            raise ValidationError("Volatility must be positive")
+        if v > 1.0:  # Reasonable upper bound for volatility
+            raise ValidationError("Volatility seems too high")
+        
         kappa = values.data.get("kappa")
         theta = values.data.get("theta")
         if kappa is not None and theta is not None:
             if 2 * kappa * theta <= v**2:
-                raise ValueError("Feller condition violated: 2κθ ≤ σ²")
+                raise ValidationError("Feller condition violated: 2κθ ≤ σ²")
         return v
 
     @field_validator("r0")
     def validate_r0(cls, v):
         if v < 0:
-            raise ValueError("Initial rate must be non-negative")
+            raise ValidationError("Initial rate must be non-negative")
+        if v > 0.5:  # Reasonable upper bound for initial rate
+            raise ValidationError("Initial rate seems too high")
         return v
+
+    def validate_parameters(self) -> None:
+        """Validate all parameters together."""
+        if not self.feller_condition_satisfied:
+            raise ValidationError(
+                "Feller condition violated: 2κθ ≤ σ². "
+                "This may lead to numerical instability."
+            )
+        
+        # Check if mean reversion time is reasonable
+        if self.mean_reversion_time < 0.1:  # Less than 1.2 months
+            raise ValidationError(
+                "Mean reversion time too short. "
+                "This may lead to numerical instability."
+            )
+        
+        # Check if volatility scale is reasonable
+        if self.volatility_scale > 0.5:  # More than 50% annualized
+            raise ValidationError(
+                "Volatility scale too high. "
+                "This may lead to numerical instability."
+            )
 
 
 class EquityParams(BaseModel):
@@ -251,46 +297,117 @@ class EquityParams(BaseModel):
     theta_v: float = Field(gt=0, description="Long-term mean level of the variance")
     sigma_v: float = Field(gt=0, description="Volatility of the variance process")
 
-    @field_validator("S0")
-    def validate_S0(cls, v):
-        if v <= 0:
-            raise ValueError("Initial stock price must be positive")
-        return v
+    @property
+    def feller_condition_satisfied(self) -> bool:
+        """Check if the Feller condition is satisfied: 2κ_vθ_v > σ_v²."""
+        return 2 * self.kappa_v * self.theta_v > self.sigma_v**2
 
-    @field_validator("v0")
-    def validate_v0(cls, v):
-        if v <= 0:
-            raise ValueError("Initial variance must be positive")
-        return v
+    @property
+    def mean_reversion_time(self) -> float:
+        """Time scale for variance mean reversion: 1/κ_v."""
+        return 1.0 / self.kappa_v
 
-    @field_validator("kappa_v")
-    def validate_kappa_v(cls, v):
-        if v <= 0:
-            raise ValueError("Variance mean reversion speed must be positive")
-        return v
+    @property
+    def volatility_scale(self) -> float:
+        """Scale of variance volatility in the stationary distribution: σ_v/√(2κ_v)."""
+        return self.sigma_v / np.sqrt(2 * self.kappa_v)
 
-    @field_validator("theta_v")
-    def validate_theta_v(cls, v):
-        if v <= 0:
-            raise ValueError("Variance long-term mean must be positive")
-        return v
+    @property
+    def total_return(self) -> float:
+        """Total return rate: μ - q."""
+        return self.mu - self.q
 
-    @field_validator("sigma_v")
-    def validate_sigma_v(cls, v, values):
-        if v <= 0:
-            raise ValueError("Variance volatility must be positive")
-        kappa_v = values.data.get("kappa_v")
-        theta_v = values.data.get("theta_v")
-        if kappa_v is not None and theta_v is not None:
-            if 2 * kappa_v * theta_v <= v**2:
-                raise ValueError("Feller condition violated: 2κ_vθ_v ≤ σ_v²")
+    @field_validator("mu")
+    def validate_mu(cls, v):
+        if abs(v) > 1.0:  # Reasonable bound for drift
+            raise ValidationError("Drift rate seems too high")
         return v
 
     @field_validator("q")
     def validate_q(cls, v):
         if v < 0:
-            raise ValueError("Dividend yield must be non-negative")
+            raise ValidationError("Dividend yield must be non-negative")
+        if v > 0.2:  # Reasonable upper bound for dividend yield
+            raise ValidationError("Dividend yield seems too high")
         return v
+
+    @field_validator("S0")
+    def validate_S0(cls, v):
+        if v <= 0:
+            raise ValidationError("Initial stock price must be positive")
+        if v > 10000:  # Reasonable upper bound for stock price
+            raise ValidationError("Initial stock price seems too high")
+        return v
+
+    @field_validator("v0")
+    def validate_v0(cls, v):
+        if v <= 0:
+            raise ValidationError("Initial variance must be positive")
+        if v > 1.0:  # Reasonable upper bound for variance
+            raise ValidationError("Initial variance seems too high")
+        return v
+
+    @field_validator("kappa_v")
+    def validate_kappa_v(cls, v):
+        if v <= 0:
+            raise ValidationError("Variance mean reversion must be positive")
+        if v > 10.0:  # Reasonable upper bound
+            raise ValidationError("Variance mean reversion seems too high")
+        return v
+
+    @field_validator("theta_v")
+    def validate_theta_v(cls, v):
+        if v <= 0:
+            raise ValidationError("Long-term variance must be positive")
+        if v > 1.0:  # Reasonable upper bound for variance
+            raise ValidationError("Long-term variance seems too high")
+        return v
+
+    @field_validator("sigma_v")
+    def validate_sigma_v(cls, v, values):
+        if v <= 0:
+            raise ValidationError("Volatility of variance must be positive")
+        if v > 2.0:  # Reasonable upper bound for vol of vol
+            raise ValidationError("Volatility of variance seems too high")
+        
+        kappa_v = values.data.get("kappa_v")
+        theta_v = values.data.get("theta_v")
+        if kappa_v is not None and theta_v is not None:
+            if 2 * kappa_v * theta_v <= v**2:
+                raise ValidationError("Feller condition violated for variance process")
+        return v
+
+    def validate_parameters(self) -> None:
+        """Validate all parameters together."""
+        # Check Feller condition for variance process
+        if 2 * self.kappa_v * self.theta_v <= self.sigma_v**2:
+            raise ValidationError(
+                "Feller condition violated for variance process: 2κ_vθ_v ≤ σ_v². "
+                "This may lead to numerical instability."
+            )
+        
+        # Check if mean reversion time is reasonable
+        mean_rev_time = 1.0 / self.kappa_v
+        if mean_rev_time < 0.1:  # Less than 1.2 months
+            raise ValidationError(
+                "Variance mean reversion time too short. "
+                "This may lead to numerical instability."
+            )
+        
+        # Check if volatility scale is reasonable
+        vol_scale = self.sigma_v / np.sqrt(2 * self.kappa_v)
+        if vol_scale > 0.5:  # More than 50% annualized
+            raise ValidationError(
+                "Variance volatility scale too high. "
+                "This may lead to numerical instability."
+            )
+        
+        # Check if initial variance is reasonable compared to long-term variance
+        if self.v0 > 2 * self.theta_v:
+            raise ValidationError(
+                "Initial variance too high compared to long-term variance. "
+                "This may lead to numerical instability."
+            )
 
 
 class ModelParams(BaseModel):

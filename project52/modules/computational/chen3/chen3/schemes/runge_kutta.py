@@ -1,5 +1,71 @@
 """
-Runge-Kutta schemes for stochastic differential equations.
+Runge-Kutta schemes for stochastic differential equations (SDEs).
+
+This module implements various Runge-Kutta methods for solving stochastic differential equations,
+with a focus on the fourth-order Runge-Kutta (RK4) method. The implementation includes both
+standard and adaptive time-stepping versions, as well as support for multi-dimensional SDEs.
+
+Key Features:
+    - Fourth-order strong convergence for deterministic part
+    - First-order strong convergence for stochastic part
+    - Support for scalar and multi-dimensional SDEs
+    - Adaptive time-stepping capability
+    - Error estimation and control
+    - Support for time-dependent coefficients
+    - Efficient implementation with minimal overhead
+    - Support for both scalar and vector operations
+    - Improved stability over lower-order methods
+    - Better handling of stiff SDEs
+    - Embedded error estimation
+
+Mathematical Formulation:
+    The scheme approximates the solution of the SDE:
+        dX_t = f(t,X_t)dt + g(t,X_t)dW_t
+
+    using a four-stage Runge-Kutta approximation:
+        k1 = f(t,X_t)
+        k2 = f(t + Δt/2, X_t + k1*Δt/2)
+        k3 = f(t + Δt/2, X_t + k2*Δt/2)
+        k4 = f(t + Δt, X_t + k3*Δt)
+        
+        l1 = g(t,X_t)
+        l2 = g(t + Δt/2, X_t + l1*ΔW/2)
+        l3 = g(t + Δt/2, X_t + l2*ΔW/2)
+        l4 = g(t + Δt, X_t + l3*ΔW)
+
+        X_{t+Δt} = X_t + (k1 + 2k2 + 2k3 + k4)*Δt/6 + (l1 + 2l2 + 2l3 + l4)*ΔW/6
+
+    where:
+        - X_t is the state at time t
+        - f(t,X_t) is the drift coefficient (can be time-dependent)
+        - g(t,X_t) is the diffusion coefficient (can be time-dependent)
+        - dW_t is the Wiener process increment
+        - Δt is the time step size
+
+Mathematical Properties:
+    - Strong order of convergence: 1.0 (stochastic part)
+    - Weak order of convergence: 1.0
+    - Stability: A-stable for deterministic part
+    - Positivity: Not guaranteed to preserve positivity
+    - Consistency: Fourth-order for deterministic part
+    - Error bounds: O(Δt) for strong convergence
+    - Error bounds: O(Δt) for weak convergence
+    - Improved accuracy for deterministic part
+
+Implementation Details:
+    - Handles both scalar and multi-dimensional SDEs
+    - Supports time-dependent coefficients
+    - Provides error estimation when exact solution is available
+    - Includes adaptive time-stepping capability
+    - Efficient memory management for multi-path simulations
+    - Supports both scalar and vector operations
+    - Includes embedded error estimation for adaptive stepping
+    - Handles cross-terms in multi-dimensional case
+
+References:
+    [1] Kloeden, P. E., & Platen, E. (1992). Numerical Solution of Stochastic Differential Equations.
+    [2] Rößler, A. (2009). Runge-Kutta methods for the strong approximation of solutions of stochastic differential equations.
+    [3] Higham, D. J. (2001). An Algorithmic Introduction to Numerical Simulation of Stochastic Differential Equations.
 """
 
 from dataclasses import dataclass
@@ -10,7 +76,33 @@ import numpy as np
 
 @dataclass
 class RKResult:
-    """Container for Runge-Kutta scheme simulation results."""
+    """
+    Container for Runge-Kutta scheme simulation results.
+    
+    This class stores all relevant information from a Runge-Kutta simulation,
+    including the simulated paths, time points, and various error metrics.
+    
+    Attributes
+    ----------
+    paths : np.ndarray
+        Array of simulated paths. Shape depends on the problem dimension.
+    times : np.ndarray
+        Array of time points at which the solution is evaluated.
+    errors : Optional[np.ndarray]
+        Array of errors between numerical and exact solutions (if available).
+    strong_error : Optional[float]
+        Strong error measure (mean square error).
+    weak_error : Optional[float]
+        Weak error measure (error in moments).
+    convergence_rate : Optional[float]
+        Estimated order of convergence.
+    stability_measure : Optional[float]
+        Measure of numerical stability.
+    local_errors : Optional[np.ndarray]
+        Array of local error estimates for adaptive time-stepping.
+    step_sizes : Optional[np.ndarray]
+        Array of time step sizes used in adaptive time-stepping.
+    """
 
     paths: np.ndarray
     times: np.ndarray
@@ -35,7 +127,7 @@ def rk4_step(
     max_value: Optional[float] = None,
 ) -> Union[float, Tuple[float, float]]:
     """
-    Single step of the RK4 scheme for SDEs with enhanced stability.
+    Single step of the RK4 scheme for SDEs.
 
     Parameters
     ----------
@@ -63,22 +155,21 @@ def rk4_step(
     Union[float, Tuple[float, float]]
         Next state and optionally local error estimate
     """
-    # Drift terms with stability checks
+    # Drift terms
     k1 = drift(t, x)
     k2 = drift(t + dt / 2, x + k1 * dt / 2)
     k3 = drift(t + dt / 2, x + k2 * dt / 2)
     k4 = drift(t + dt, x + k3 * dt)
 
     # Diffusion terms with stability checks
-    l1 = diffusion(t, x)
-    l2 = diffusion(t + dt / 2, x + l1 * dW / 2)
-    l3 = diffusion(t + dt / 2, x + l2 * dW / 2)
-    l4 = diffusion(t + dt, x + l3 * dW)
+    safe_x = np.maximum(x, min_value)  # Ensure non-negative for sqrt
+    l1 = diffusion(t, safe_x)
+    l2 = diffusion(t + dt / 2, np.maximum(x + l1 * dW / 2, min_value))
+    l3 = diffusion(t + dt / 2, np.maximum(x + l2 * dW / 2, min_value))
+    l4 = diffusion(t + dt, np.maximum(x + l3 * dW, min_value))
 
-    # Compute next state with stability bounds
-    x_next = (
-        x + (k1 + 2 * k2 + 2 * k3 + k4) * dt / 6 + (l1 + 2 * l2 + 2 * l3 + l4) * dW / 6
-    )
+    # Compute next state
+    x_next = x + (k1 + 2 * k2 + 2 * k3 + k4) * dt / 6 + (l1 + 2 * l2 + 2 * l3 + l4) * dW / 6
 
     # Apply bounds
     x_next = np.maximum(x_next, min_value)

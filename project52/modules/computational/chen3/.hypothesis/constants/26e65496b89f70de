@@ -1,0 +1,4 @@
+# file: /Users/m/Desktop/project52/project52/modules/computational/chen3/chen3/schemes/__init__.py
+# hypothesis_version: 6.131.18
+
+['adaptive_scheme', 'adf_scheme', 'euler_scheme', 'exact_scheme', 'milstein_scheme', 'platen_scheme', 'rk4_scheme']

@@ -89,11 +89,11 @@ class TimeDependentCorrelation(BaseCorrelation):
                 raise CorrelationValidationError(
                     f"Correlation matrix at time {self.time_points[i]} must have ones on diagonal"
                 )
-            try:
-                np.linalg.cholesky(corr_matrix)
-            except np.linalg.LinAlgError:
+            # Stricter positive definiteness check
+            eigvals = np.linalg.eigvalsh(corr_matrix)
+            if np.any(eigvals <= 1e-8):
                 raise CorrelationValidationError(
-                    f"Correlation matrix at time {self.time_points[i]} is not positive definite"
+                    f"Correlation matrix at time {self.time_points[i]} is not strictly positive definite"
                 )
 
     def _setup_interpolation(self) -> None:

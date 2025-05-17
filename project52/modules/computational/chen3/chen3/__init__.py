@@ -160,6 +160,6 @@ from .datatypes import EquityParams, ModelParams, RateParams
 from .model import Chen3Model
 
 __version__ = "1.0.0"
-__author__ = "Chen3 Development Team"
+__author__ = "The Chen3 Development Team at 254StudioZ"
 
 __all__ = ["Chen3Model", "ModelParams", "RateParams", "EquityParams", "Settings"]

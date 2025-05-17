@@ -343,22 +343,31 @@ class QuasiMonteCarloEngine(MonteCarloEngineBase):
 
                 # Compute drift and diffusion
                 drift = drift_function(state, t * self.dt)
-                diffusion = diffusion_function(state, t * self.dt)
+                # Clamp state values for sqrt
+                safe_r = np.maximum(state["r"], 0)
+                safe_v = np.maximum(state["v"], 0)
+                diffusion = diffusion_function({"r": safe_r, "S": state["S"], "v": safe_v}, t * self.dt)
 
-                # Update paths
-                rate_paths[:, t + 1] = (
-                    rate_paths[:, t] + drift[0] * self.dt + diffusion[0] * dW[:, t, 0]
-                )
-                equity_paths[:, t + 1] = equity_paths[:, t] * np.exp(
-                    (drift[1] - 0.5 * diffusion[1] ** 2) * self.dt
-                    + diffusion[1] * dW[:, t, 1]
-                )
-                variance_paths[:, t + 1] = np.maximum(
-                    variance_paths[:, t]
-                    + drift[2] * self.dt
-                    + diffusion[2] * dW[:, t, 2],
-                    0.0,
-                )
+                # Update rate paths (CIR process)
+                rate_paths[:, t + 1] = rate_paths[:, t] + drift[0] * self.dt + diffusion[0] * dW[:, t, 0]
+                rate_paths[:, t + 1] = np.maximum(rate_paths[:, t + 1], 0)
+
+                # Update equity paths (Geometric Brownian Motion with stochastic volatility)
+                log_S = np.log(np.maximum(equity_paths[:, t], 1e-10))  # Prevent log(0)
+                drift_term = np.clip((drift[1] - 0.5 * diffusion[1] ** 2) * self.dt, -10.0, 10.0)
+                diffusion_term = np.clip(diffusion[1] * dW[:, t, 1], -10.0, 10.0)
+                log_S_new = log_S + drift_term + diffusion_term
+                equity_paths[:, t + 1] = np.exp(np.clip(log_S_new, -100.0, 100.0))
+
+                # Update variance paths (CIR process)
+                variance_paths[:, t + 1] = variance_paths[:, t] + drift[2] * self.dt + diffusion[2] * dW[:, t, 2]
+                variance_paths[:, t + 1] = np.clip(variance_paths[:, t + 1], 1e-10, 10.0)
+
+                # Check for NaN/Inf and set to previous value if found
+                for arr, name in zip([rate_paths, equity_paths, variance_paths], ["rate", "equity", "variance"]):
+                    mask = ~np.isfinite(arr[:, t + 1])
+                    if np.any(mask):
+                        arr[mask, t + 1] = arr[mask, t]
 
             # Apply antithetic variates if enabled
             if self.use_antithetic:

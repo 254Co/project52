@@ -37,7 +37,7 @@ def test_time_dependent_correlation():
         )
 
     # Test with invalid correlation matrix
-    invalid_matrix = np.array([[1.0, 0.9, 0.9], [0.9, 1.0, 0.9], [0.9, 0.9, 1.0]])
+    invalid_matrix = np.array([[1.0, 2.0, 2.0], [2.0, 1.0, 2.0], [2.0, 2.0, 1.0]])
     with pytest.raises(CorrelationValidationError):
         TimeDependentCorrelation(
             time_points=np.array([0.0, 1.0]),
@@ -130,6 +130,7 @@ def test_copula_correlation():
     gaussian_corr = CopulaCorrelation(
         copula_type="gaussian",
         correlation_matrix=base_corr,
+        copula_params={},
     )
     assert gaussian_corr.n_factors == 3
     assert gaussian_corr.name == "CopulaCorrelation"
@@ -184,7 +185,7 @@ def test_correlation_validation():
     )
 
     # Test invalid correlation matrix (not positive definite)
-    invalid_matrix = np.array([[1.0, 0.9, 0.9], [0.9, 1.0, 0.9], [0.9, 0.9, 1.0]])
+    invalid_matrix = np.array([[1.0, 2.0, 2.0], [2.0, 1.0, 2.0], [2.0, 2.0, 1.0]])
 
     with pytest.raises(CorrelationValidationError):
         TimeDependentCorrelation(

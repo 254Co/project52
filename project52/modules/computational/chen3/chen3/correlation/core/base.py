@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 
-from ..utils.exceptions import CorrelationError
+from ..utils.exceptions import CorrelationError, CorrelationValidationError
 from ..utils.logging_config import logger
 
 
@@ -75,29 +75,29 @@ class BaseCorrelation(ABC):
             corr: Correlation matrix to validate
 
         Raises:
-            CorrelationError: If matrix is invalid
+            CorrelationValidationError: If matrix is invalid
         """
         if not isinstance(corr, np.ndarray):
-            raise CorrelationError("Correlation must be a numpy array")
+            raise CorrelationValidationError("Correlation must be a numpy array")
 
         if corr.shape != (self.n_factors, self.n_factors):
-            raise CorrelationError(
+            raise CorrelationValidationError(
                 f"Correlation matrix must be {self.n_factors}x{self.n_factors}"
             )
 
         if not np.allclose(corr, corr.T):
-            raise CorrelationError("Correlation matrix must be symmetric")
+            raise CorrelationValidationError("Correlation matrix must be symmetric")
 
         if not np.all(np.diag(corr) == 1.0):
-            raise CorrelationError("Correlation matrix diagonal must be 1.0")
+            raise CorrelationValidationError("Correlation matrix diagonal must be 1.0")
 
         if not np.all(np.abs(corr) <= 1.0):
-            raise CorrelationError("Correlation values must be in [-1, 1]")
+            raise CorrelationValidationError("Correlation values must be in [-1, 1]")
 
         try:
             np.linalg.cholesky(corr)
         except np.linalg.LinAlgError:
-            raise CorrelationError("Correlation matrix must be positive definite")
+            raise CorrelationValidationError("Correlation matrix must be positive definite")
 
     def _compute_cholesky(self, corr: np.ndarray) -> np.ndarray:
         """
