@@ -17,6 +17,7 @@ decomposition, all while performing computations on the GPU.
 import cupy as cp
 from .core import PathGenerator
 from chen3.correlation import cholesky_correlation
+from typing import Dict, Optional, Tuple
 
 
 class GPUVectorizedSimulator(PathGenerator):
@@ -43,17 +44,8 @@ class GPUVectorizedSimulator(PathGenerator):
             - n_steps: Number of time steps
             - dt: Time step size
         rng: CuPy random number generator instance
-    
-    Example:
-        >>> from chen3.config import Settings
-        >>> settings = Settings(backend="gpu", n_paths=1000000, n_steps=252)
-        >>> simulator = GPUVectorizedSimulator(model, settings)
-        >>> paths = simulator.generate()  # shape: (n_paths, n_steps+1, 3)
-    
-    Notes:
-        - Requires CUDA-capable GPU and CuPy installation
-        - All computations are performed on the GPU
-        - Random number generation is also performed on the GPU
+        current_step: Current simulation step
+        total_steps: Total number of steps
     """
     
     def __init__(self, model, settings):
@@ -70,8 +62,10 @@ class GPUVectorizedSimulator(PathGenerator):
         """
         super().__init__(model, settings)
         self.rng = cp.random.default_rng(settings.seed)
+        self.current_step = 0
+        self.total_steps = settings.n_steps
 
-    def generate(self):
+    def generate(self) -> cp.ndarray:
         """
         Generate Monte Carlo paths for the three-factor model on GPU.
         
@@ -118,6 +112,8 @@ class GPUVectorizedSimulator(PathGenerator):
 
         # Time stepping
         for t in range(1, M+1):
+            self.current_step = t
+            
             # Generate correlated random increments on GPU
             Z = self.rng.standard_normal((N, 3))
             dW = Z @ L_cp.T * sqrt_dt
@@ -131,3 +127,60 @@ class GPUVectorizedSimulator(PathGenerator):
             paths[:, t, :] = cp.stack([S, v, r], axis=1)
 
         return paths
+    
+    def get_state(self) -> Dict[str, cp.ndarray]:
+        """
+        Get current simulation state.
+        
+        Returns:
+            Dict[str, cp.ndarray]: Current state including:
+                - paths: Current path array
+                - S: Current stock prices
+                - v: Current variance values
+                - r: Current interest rates
+                - rng_state: Random number generator state
+        """
+        return {
+            'paths': self.paths,
+            'S': self.S,
+            'v': self.v,
+            'r': self.r,
+            'rng_state': self.rng.get_state()
+        }
+    
+    def resume_from_state(self, state: Dict[str, cp.ndarray]) -> cp.ndarray:
+        """
+        Resume simulation from a saved state.
+        
+        Args:
+            state (Dict[str, cp.ndarray]): Saved state
+            
+        Returns:
+            cp.ndarray: Completed paths
+            
+        Raises:
+            ValueError: If state is invalid
+        """
+        # Validate state
+        required_keys = {'paths', 'S', 'v', 'r', 'rng_state'}
+        if not all(key in state for key in required_keys):
+            raise ValueError("Invalid state: missing required keys")
+        
+        # Restore state
+        self.paths = state['paths']
+        self.S = state['S']
+        self.v = state['v']
+        self.r = state['r']
+        self.rng.set_state(state['rng_state'])
+        
+        # Continue simulation
+        return self.generate()
+    
+    def get_progress(self) -> float:
+        """
+        Get simulation progress.
+        
+        Returns:
+            float: Progress as a fraction between 0 and 1
+        """
+        return self.current_step / self.total_steps if self.total_steps > 0 else 0.0

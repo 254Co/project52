@@ -1,15 +1,42 @@
 # -------------------- chen3/numerical_engines/__init__.py --------------------
-"""Numerical engines for advanced Monte Carlo and PDE methods."""
-from .variance_reduction import antithetic_normal, control_variate, latin_hypercube_normal
-from .quasi_mc import sobol_normal, halton_normal
+"""
+Numerical engines for the Chen3 model.
+
+This module provides various numerical engines for the Chen3 model,
+including Monte Carlo simulation, path generation, and integration schemes.
+"""
+
+from .monte_carlo import MonteCarloEngineBase, MonteCarloEngine
 from .gpu_mc_engine import GPUMonteCarloEngine
-from .multi_gpu_distributor import MultiGPUSimulator
-from .aad import mc_price_and_delta_jax
-from .gpu_pde_solver import gpu_crank_nicolson
+from .quasi_mc import QuasiMonteCarloEngine
+from .multi_gpu_distributor import DistributedMonteCarloEngine
+from .path_generator import PathGenerator
+from .integration import IntegrationScheme
+from .random import RandomNumberGenerator
+from .variance_reduction import (
+    VarianceReductionTechnique,
+    AntitheticVariates,
+    ControlVariates,
+    ImportanceSampling,
+    StratifiedSampling,
+    MultiLevelMonteCarlo,
+    create_variance_reduction
+)
 
 __all__ = [
-    "antithetic_normal", "control_variate", "latin_hypercube_normal",
-    "sobol_normal", "halton_normal",
-    "GPUMonteCarloEngine", "MultiGPUSimulator",
-    "mc_price_and_delta_jax", "gpu_crank_nicolson"
+    'MonteCarloEngineBase',
+    'MonteCarloEngine',
+    'GPUMonteCarloEngine',
+    'QuasiMonteCarloEngine',
+    'DistributedMonteCarloEngine',
+    'PathGenerator',
+    'IntegrationScheme',
+    'RandomNumberGenerator',
+    'VarianceReductionTechnique',
+    'AntitheticVariates',
+    'ControlVariates',
+    'ImportanceSampling',
+    'StratifiedSampling',
+    'MultiLevelMonteCarlo',
+    'create_variance_reduction'
 ]
