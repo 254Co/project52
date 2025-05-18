@@ -8,7 +8,7 @@ from market_utils import expiry252time
 
 
 if __name__ == "__main__":
-    init_logger("ERROR")
+    init_logger("CRITICAL")
     T = expiry252time("2025-12-31") ### Time in years until expiration
     S0 =  100 ### The initial spot price of the underlying asset at time 0
     K = 100 ### The option’s strike price

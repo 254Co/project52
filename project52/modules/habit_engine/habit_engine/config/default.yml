@@ -1,0 +1,30 @@
+# Default parameters for the Campbell-Cochrane habit formation model
+# These parameters are based on empirical estimates and theoretical considerations
+default_params:
+  # Risk aversion parameter (gamma > 1)
+  # Higher values indicate greater risk aversion
+  gamma: 2.0
+
+  # Time discount factor (0 < beta < 1)
+  # Determines how much future utility is discounted
+  beta: 0.997
+
+  # Habit persistence parameter (0 < phi < 1)
+  # Higher values indicate slower habit adjustment
+  phi: 0.82
+
+  # Consumption growth volatility
+  # Standard deviation of log consumption growth
+  sigma_c: 0.01
+
+  # Mean consumption growth rate
+  # Expected growth rate of consumption
+  g: 0.0013
+
+  # Steady-state surplus consumption ratio
+  # Long-run average of the surplus consumption ratio
+  s_bar: 0.05
+
+  # Sensitivity parameter for surplus consumption
+  # Controls how the surplus ratio affects risk aversion
+  lambda_s: 1.8
