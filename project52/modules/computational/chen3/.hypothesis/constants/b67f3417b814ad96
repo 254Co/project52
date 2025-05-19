@@ -1,4 +1,0 @@
-# file: /Users/m/Desktop/project52/project52/modules/computational/chen3/chen3/correlation/models/copula.py
-# hypothesis_version: 6.131.18
-
-[0.0, 0.1, 0.5, 0.8, 0.9, 1.0, 1.2, 2.0, 5.0, 'CopulaCorrelation', 'clayton', 'custom', 'df', 'func', 'gaussian', 'gumbel', 'student', 'theta']
