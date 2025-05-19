@@ -9,6 +9,18 @@ The module implements:
 2. Date range filtering
 3. Rate conversion from percentage to decimal
 4. Error handling for empty data sets
+
+Key features:
+    1. Direct access to NY Fed's official SOFR data
+    2. Automatic rate conversion from percentage to decimal
+    3. Flexible date range filtering
+    4. Proper error handling and logging
+    5. Efficient data processing using pandas
+
+Note:
+    SOFR is published daily by the New York Federal Reserve and represents
+    the cost of borrowing cash overnight collateralized by Treasury securities.
+    It is a key reference rate for USD-denominated financial instruments.
 """
 
 from __future__ import annotations
@@ -32,6 +44,13 @@ def fetch_sofr(start: date, end: date | None = None) -> pd.Series:
     and returns them as a pandas Series. The rates are converted from
     percentage to decimal format (e.g., 5.25% → 0.0525).
     
+    The function handles:
+    - Direct CSV download from NY Fed's API
+    - Date range filtering
+    - Rate conversion from percentage to decimal
+    - Error handling for empty data sets
+    - Proper logging of operations
+    
     Args:
         start: Start date (inclusive)
         end: End date (inclusive). Defaults to today if None.
@@ -54,6 +73,12 @@ def fetch_sofr(start: date, end: date | None = None) -> pd.Series:
         2024-01-02    0.0525
         2024-01-03    0.0525
         ...
+        
+    Note:
+        The function downloads the entire SOFR history and then filters
+        for the requested date range. This approach ensures that we have
+        access to all available data while maintaining efficiency through
+        pandas' optimized filtering operations.
     """
     end = end or date.today()
     _LOG.debug("Downloading SOFR CSV from NY Fed…")

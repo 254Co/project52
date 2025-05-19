@@ -8,6 +8,20 @@ The module implements a high-level interface that combines:
 2. Bootstrapping of zero-coupon yields
 3. Optional Nelson-Siegel smoothing
 4. Rate and discount factor calculations
+
+Key features:
+    1. Automatic data fetching from Treasury
+    2. Bootstrapping of zero-coupon yields from par yields
+    3. Optional Nelson-Siegel smoothing
+    4. Linear interpolation for intermediate tenors
+    5. Discount factor calculations
+    6. DataFrame conversion for analysis
+
+Note:
+    All rates are in continuous compounding convention. The curve can be
+    constructed in two modes:
+    1. Raw bootstrapped curve (smooth=False): Preserves market data exactly
+    2. Nelson-Siegel smoothed curve (smooth=True): Provides a smooth parametric fit
 """
 from __future__ import annotations
 from datetime import date
@@ -36,6 +50,14 @@ class RiskFreeCurve:
     
     All rates are in continuous compounding convention.
     
+    Key features:
+        1. Automatic data fetching from Treasury
+        2. Bootstrapping of zero-coupon yields
+        3. Optional Nelson-Siegel smoothing
+        4. Linear interpolation for intermediate tenors
+        5. Discount factor calculations
+        6. DataFrame conversion for analysis
+    
     Example:
         >>> curve = RiskFreeCurve(date.today())
         >>> rate = curve.spot(5.0)  # Get 5-year spot rate
@@ -61,6 +83,11 @@ class RiskFreeCurve:
             1. Fetching par yields from Treasury
             2. Bootstrapping zero-coupon yields
             3. Optionally fitting Nelson-Siegel model
+            
+            The Nelson-Siegel model provides a smooth parametric fit that:
+            - Captures the level, slope, and curvature of the yield curve
+            - Reduces noise in the bootstrapped rates
+            - Ensures a smooth curve for all tenors
         """
         # Fetch par yields and bootstrap zero-coupon yields
         par = fetch_par_curve(trade_date)
@@ -96,6 +123,8 @@ class RiskFreeCurve:
             
         Note:
             For tenors between available points, linear interpolation is used.
+            The interpolation preserves the continuous compounding convention
+            and provides a reasonable approximation for intermediate tenors.
         """
         # Get sorted list of available tenors
         ts = sorted(self.zeros)
@@ -129,6 +158,8 @@ class RiskFreeCurve:
             
         Note:
             The discount factor represents the present value of $1 received at time t.
+            It is calculated using continuous compounding, which provides a
+            mathematically convenient representation of the time value of money.
         """
         return exp(-self.spot(t) * t)
 
@@ -153,6 +184,13 @@ class RiskFreeCurve:
             1.0     0.05    0.951229
             2.0     0.06    0.886920
             ...
+            
+        Note:
+            The DataFrame format makes it easy to:
+            1. Analyze the curve structure
+            2. Plot the yield curve
+            3. Export the data for further analysis
+            4. Compare different curves
         """
         # Create DataFrame with tenors and zero rates
         df = pd.DataFrame({"tenor": list(self.zeros), "zero": list(self.zeros.values())})

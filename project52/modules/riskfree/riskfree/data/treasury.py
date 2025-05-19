@@ -11,6 +11,19 @@ The module implements:
 2. XML parsing of Treasury data
 3. Automatic backfilling for missing dates
 4. Fallback to zero curve when no data is available
+
+Key features:
+    1. Robust HTTP request handling with automatic retries
+    2. XML parsing with proper namespace handling
+    3. Automatic backfilling for weekends and holidays
+    4. Fallback to zero curve when no data is available
+    5. Proper error handling and logging
+    6. Support for all standard Treasury tenors
+
+Note:
+    The module fetches data from the official U.S. Treasury XML feed at
+    https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml
+    and handles all the complexities of data retrieval and parsing.
 """
 
 import requests
@@ -27,6 +40,8 @@ class FetchDataError(Exception):
     1. The Treasury XML feed is unavailable
     2. The response cannot be parsed
     3. No data is available for the requested date range
+    
+    The error includes details about the failure to help with debugging.
     """
     pass
 
@@ -40,6 +55,13 @@ def fetch_par_curve(trade_date: date) -> pd.DataFrame:
        it will step backward up to 7 days to find the most recent published curve.
     2. If still no data is found, returns a zero curve for that date.
     3. Implements automatic retry logic for failed requests.
+    
+    The function handles:
+    - HTTP request retries with exponential backoff
+    - XML parsing with proper namespace handling
+    - Automatic backfilling for missing dates
+    - Conversion of percentage rates to decimals
+    - Proper error handling and logging
     
     Args:
         trade_date: The date for which to fetch the curve.
@@ -58,6 +80,13 @@ def fetch_par_curve(trade_date: date) -> pd.DataFrame:
         >>> print(df)
         Date        1_yr    2_yr    3_yr    5_yr    7_yr    10_yr   20_yr   30_yr
         2024-03-20  0.05    0.06    0.07    0.08    0.09    0.10    0.11    0.12
+        
+    Note:
+        The function implements several robustness features:
+        1. Automatic retry logic for failed requests
+        2. Backfilling for weekends and holidays
+        3. Fallback to zero curve when no data is available
+        4. Proper error handling and logging
     """
     # Treasury XML feed URL
     BASE_URL = (

@@ -1,6 +1,6 @@
 # File: riskfree/curve/bootstrap.py
 
-"""Zero-coupon yield curve bootstrapping.
+"""Zero-coupon yield curve bootstrapping implementation.
 
 This module provides functions for bootstrapping zero-coupon yields from par yields.
 It implements the standard bootstrapping algorithm using continuous compounding.
@@ -11,6 +11,24 @@ The bootstrapping process:
    - Calculates the present value of all cash flows
    - Solves for the zero-coupon rate that makes the bond price equal to par
 3. Uses continuous compounding convention throughout
+
+The bootstrapping algorithm:
+    For each tenor t:
+    1. Calculate the present value of all cash flows using previously
+       bootstrapped zero rates for shorter tenors
+    2. Solve for the zero rate at tenor t that makes the bond price equal to par
+    3. Store the zero rate in the output dictionary
+
+Key assumptions:
+    1. All bonds pay semi-annual coupons
+    2. All rates are in continuous compounding
+    3. The curve is arbitrage-free
+    4. The input par yields are market-observed rates
+
+Note:
+    This implementation uses a simplified approach that assumes continuous
+    compounding throughout. For more precise results, consider using
+    actual day count conventions and payment frequencies.
 """
 import pandas as pd
 from math import log
@@ -55,6 +73,13 @@ def bootstrap_par_yields(par_df: pd.DataFrame) -> Dict[float, float]:
         1. All bonds pay semi-annual coupons
         2. All rates are in continuous compounding
         3. The curve is arbitrage-free
+        4. The input par yields are market-observed rates
+        
+        The algorithm uses a simplified approach that may not be suitable
+        for all market conditions. For more precise results, consider:
+        1. Using actual day count conventions
+        2. Accounting for payment frequencies
+        3. Incorporating market conventions for specific instruments
     """
     # Create a copy of the input DataFrame
     df = par_df.copy()

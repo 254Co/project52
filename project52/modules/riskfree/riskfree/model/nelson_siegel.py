@@ -16,6 +16,18 @@ Implementation details:
 - Uses scipy's minimize for parameter optimization
 - Implements box constraints for parameter bounds
 - Handles numerical stability near zero
+
+Key features:
+    1. Four-parameter model capturing level, slope, and curvature
+    2. Efficient parameter optimization using L-BFGS-B
+    3. Robust handling of numerical edge cases
+    4. Box constraints for parameter stability
+    5. Continuous compounding convention
+
+Note:
+    The Nelson-Siegel model provides a parsimonious representation of the
+    yield curve that captures its key features while remaining flexible
+    enough to fit a wide range of curve shapes.
 """
 from __future__ import annotations
 import numpy as np
@@ -33,6 +45,12 @@ def ns_zero(t: float, b0: float, b1: float, b2: float, tau: float) -> float:
     The model uses the following formula:
     r(t) = b0 + b1 * (1-exp(-t/tau))/(t/tau) + b2 * ((1-exp(-t/tau))/(t/tau) - exp(-t/tau))
     
+    The components have the following interpretations:
+    - Level (b0): Asymptotic long-term rate
+    - Slope (b1): Short-term vs long-term spread
+    - Curvature (b2): Medium-term deviation from linear trend
+    - Tau (tau): Controls the speed of decay of the slope and curvature
+    
     Args:
         t: Tenor in years
         b0: Level parameter (long-term rate)
@@ -47,6 +65,10 @@ def ns_zero(t: float, b0: float, b1: float, b2: float, tau: float) -> float:
         >>> rate = ns_zero(5.0, 0.05, -0.02, 0.01, 2.0)
         >>> print(f"{rate:.4f}")
         0.0482
+        
+    Note:
+        The function handles the special case of zero tenor by returning
+        b0 + b1, which represents the instantaneous forward rate at t=0.
     """
     # Handle special case of zero tenor
     if t == 0:
@@ -74,6 +96,11 @@ def fit_nelson_siegel(times: list[float], zeros: list[float]) -> tuple[float, fl
     3. Starts from reasonable initial guess
     4. Handles numerical stability near zero
     
+    The optimization constraints:
+    - All parameters are bounded between -0.1 and 0.2
+    - Initial guess: [0.03, -0.02, 0.02, 1.0]
+    - Uses L-BFGS-B algorithm for box-constrained optimization
+    
     Args:
         times: List of tenors in years
         zeros: List of observed zero rates (continuous compounding)
@@ -92,18 +119,26 @@ def fit_nelson_siegel(times: list[float], zeros: list[float]) -> tuple[float, fl
         Level: 0.0800, Slope: -0.0300, Curvature: 0.0100, Tau: 2.0000
         
     Note:
-        The optimization uses the following constraints:
-        - All parameters are bounded between -0.1 and 0.2
-        - Initial guess: [0.03, -0.02, 0.02, 1.0]
+        The optimization process is sensitive to the initial guess and
+        parameter bounds. The current settings are tuned for typical
+        yield curve shapes but may need adjustment for extreme cases.
     """
     def obj(p):
         """Objective function: sum of squared errors.
+        
+        This function calculates the sum of squared differences between
+        the model predictions and observed rates. It is minimized by
+        the L-BFGS-B algorithm to find optimal parameters.
         
         Args:
             p: Array of parameters [b0, b1, b2, tau]
             
         Returns:
             Sum of squared differences between model and observed rates
+            
+        Note:
+            The objective function is smooth and differentiable, making
+            it suitable for gradient-based optimization methods.
         """
         return sum((z - ns_zero(t, *p))**2 for t, z in zip(times, zeros))
         

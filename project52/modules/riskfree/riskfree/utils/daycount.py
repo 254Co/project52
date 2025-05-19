@@ -8,9 +8,18 @@ Supported conventions:
 - ACT/365: Actual days divided by 365 (also known as ACT/365 Fixed)
 - ACT/360: Actual days divided by 360 (common for money market instruments)
 
+Key features:
+    1. Precise calculations to the second
+    2. Support for common day-count conventions
+    3. Proper handling of leap years
+    4. Clear error messages for unsupported conventions
+    5. Extensible design for adding new conventions
+
 Note:
     The module currently supports only the most common conventions.
     Additional conventions (30/360, ACT/ACT, etc.) can be added as needed.
+    The calculations are exact to the second, which is important for
+    precise financial calculations.
 """
 
 from __future__ import annotations
@@ -22,6 +31,12 @@ def yearfrac(start: datetime, end: datetime, convention: str = "ACT/365") -> flo
     This function calculates the fraction of a year between two dates using
     standard financial day-count conventions. The calculation is exact to the
     second for ACT/365 and ACT/360 conventions.
+    
+    The function handles:
+    - Precise calculations to the second
+    - Support for common day-count conventions
+    - Proper handling of leap years
+    - Clear error messages for unsupported conventions
     
     Args:
         start: Start date and time
@@ -44,6 +59,12 @@ def yearfrac(start: datetime, end: datetime, convention: str = "ACT/365") -> flo
         0.5
         >>> yearfrac(start, end, "ACT/360")  # Slightly more than half
         0.5069444444444444
+        
+    Note:
+        The calculations are exact to the second, which is important for
+        precise financial calculations. The function uses the total number
+        of seconds between dates to ensure accuracy, especially for
+        intraday calculations.
     """
     seconds = (end - start).total_seconds()
     if convention.upper() == "ACT/365":
