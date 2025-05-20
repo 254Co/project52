@@ -92,7 +92,6 @@ def fetch_overnight_call_rate_daily() -> pd.DataFrame:
         raise RuntimeError(f"No tables found at {url!r}")
 
     df = dfs[-1].copy()
-    print(df)
     # parse first column as YYYY/MM, coerce errors → NaT, drop them
     date_col = df.columns[0]
     df[date_col] = pd.to_datetime(df[date_col], format="%Y/%m/%d", errors="coerce")

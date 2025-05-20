@@ -2,6 +2,7 @@ import TreasuryUS
 import EdgarSEC
 import BankJapan
 import polygonIO
+import InternationalMonetaryFund
 
 #US Treasury Daily Yields
 df = TreasuryUS.fetch_daily_par_yields()
@@ -17,6 +18,9 @@ df = BankJapan.fetch_overnight_call_rate_monthly()
 print(df)
 
 df = BankJapan.fetch_tokyo_market_interbank_rates_daily()
+print(df)
+
+df = InternationalMonetaryFund.fetch_imf_indicators_map()
 print(df)
 
 df = polygonIO.fetch_ohlc_day("AAPL", "cqWpEROd6Kq0Q0zihGGYEosjAi4IPd_w")

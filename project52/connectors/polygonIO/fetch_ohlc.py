@@ -67,7 +67,7 @@ def fetch_ohlc_min(ticker: str, api_key: str) -> pd.DataFrame:
     url = AGG_URL.format(ticker=ticker, start=start_date, end=end_date)
     params = {
         "adjusted": "true",
-        "sort": "asc",
+        "sort": "desc",
         "limit": 50_000,
         "apiKey": api_key
     }
@@ -144,7 +144,7 @@ def fetch_ohlc_day(ticker: str, api_key: str) -> pd.DataFrame:
     url = AGG_URL.format(ticker=ticker, start=start_date, end=end_date)
     params = {
         "adjusted": "true",
-        "sort": "asc",
+        "sort": "desc",
         "limit": 50_000,
         "apiKey": api_key
     }

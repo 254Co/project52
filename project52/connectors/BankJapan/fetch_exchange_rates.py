@@ -30,7 +30,7 @@ def fetch_tokyo_market_interbank_rates_daily() -> pd.DataFrame:
         raise RuntimeError(f"No tables found at {url!r}")
 
     df = dfs[-1].copy()
-    print(df)
+
     # parse first column as YYYY/MM, coerce errors → NaT, drop them
     date_col = df.columns[0]
     df[date_col] = pd.to_datetime(df[date_col], format="%Y/%m/%d", errors="coerce")
@@ -64,7 +64,7 @@ def fetch_effective_exchange_rates_monthly() -> pd.DataFrame:
         raise RuntimeError(f"No tables found at {url!r}")
 
     df = dfs[-1].copy()
-    print(df)
+
     # parse first column as YYYY/MM, coerce errors → NaT, drop them
     date_col = df.columns[0]
     df[date_col] = pd.to_datetime(df[date_col], format="%Y/%m", errors="coerce")
