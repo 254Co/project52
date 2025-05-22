@@ -1,0 +1,1 @@
+from .gdp_usd import fetch_global_gdp_usd_current

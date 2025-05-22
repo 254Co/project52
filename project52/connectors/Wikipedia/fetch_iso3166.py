@@ -39,4 +39,24 @@ def fetch_iso3166_codes() -> pd.DataFrame:
 if __name__ == "__main__":
     df = fetch_iso3166_codes()
     print(df)
-    df.to_csv("iso.csv")
+
+
+"""
+    OUTPUT:
+
+            code                  name
+        0     AD               Andorra
+        1     AE  United Arab Emirates
+        2     AF           Afghanistan
+        3     AG   Antigua and Barbuda
+        4     AI              Anguilla
+        ..   ...                   ...
+        244   YE                 Yemen
+        245   YT               Mayotte
+        246   ZA          South Africa
+        247   ZM                Zambia
+        248   ZW              Zimbabwe
+
+        [249 rows x 2 columns]
+
+"""
